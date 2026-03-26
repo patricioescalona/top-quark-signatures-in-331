@@ -1,8 +1,8 @@
 (***************************************************************************************************************)
 (******                       This is the FeynRules mod-file for the Standard model                       ******)
+(******                       + pseudoscalar + up-like FCNC (from the 331RHN model)                       ******)
 (******                                                                                                   ******)
-(******     Authors: N. Christensen, C. Duhr, B. Fuks                                                     ******)
-(******                                                                                                   ******)
+(******                               Authors: Patricio Escalona                                          ******)
 (****** Choose whether Feynman gauge is desired.                                                          ******)
 (****** If set to False, unitary gauge is assumed.                                                          ****)
 (****** Feynman gauge is especially useful for CalcHEP/CompHEP where the calculation is 10-100 times faster. ***)
@@ -12,18 +12,18 @@
 (* ************************** *)
 (* *****  Information   ***** *)
 (* ************************** *)
-M$ModelName = "Standard Model";
+M$ModelName = "top-pseudoscalar";
 
 M$Information = {
-  Authors      -> {"N. Christensen", "C. Duhr", "B. Fuks"}, 
-  Version      -> "1.4.7",
-  Date         -> "28. 09. 2016",
-  Institutions -> {"Michigan State University", "Universite catholique de Louvain (CP3)", "IPHC Strasbourg / University of Strasbourg"},
-  Emails       -> {"neil@pa.msu.edu", "claude.duhr@uclouvain.be", "benjamin.fuks@cnrs.in2p3.fr"},
-  URLs         -> "http://feynrules.phys.ucl.ac.be/view/Main/StandardModel"
+  Authors      -> {"Patricio Escalona"}, 
+  Version      -> "1.0",
+  Date         -> "25. 03. 2026",
+  Institutions -> {"UFPB"},
+  Emails       -> {"patricioescalona96@gmail.com"},
+  URLs         -> "http://github.com/patricioescalona/top-quark-signatures-in-331"
 };
 
-FeynmanGauge = True;
+FeynmanGauge = False;
 
 (* ************************** *)
 (* ***** NLO Variables ****** *)
@@ -113,7 +113,8 @@ IndexStyle[Generation, f];
 
 M$InteractionOrderHierarchy = {
   {QCD, 1},
-  {QED, 2}
+  {QED, 2},
+  {NP, 1}
 };
 
 
@@ -400,6 +401,18 @@ M$ClassesDescription = {
     ParticleName    -> "H",
     FullName        -> "H"
   },
+  S[4] == {
+    ClassName       -> AP,
+    SelfConjugate   -> True,
+    Mass            -> {MA, 200},
+    Width           -> {WA, 1.0},
+    PropagatorLabel -> "AP",
+    PropagatorType  -> D,
+    PropagatorArrow -> None,
+    PDG             -> 36,
+    ParticleName    -> "AP",
+    FullName        -> "Pseudoscalar A"
+  },
 
 (* Higgs: physical scalars  *)
   S[2] == {
@@ -455,6 +468,7 @@ GaugeXi[ V[2]  ] = GaugeXi[Z];
 GaugeXi[ V[3]  ] = GaugeXi[W];
 GaugeXi[ V[4]  ] = GaugeXi[G];
 GaugeXi[ S[1]  ] = 1;
+GaugeXi[ S[4]  ] = 1;
 GaugeXi[ S[2]  ] = GaugeXi[Z];
 GaugeXi[ S[3]  ] = GaugeXi[W];
 GaugeXi[ U[1]  ] = GaugeXi[A];
@@ -566,6 +580,34 @@ M$Parameters = {
     Value         -> 0.227736,
     TeX           -> Subscript[\[Theta], c],
     Description   -> "Cabibbo angle"
+  },
+  gAuL == {
+    ParameterType    -> External,
+    ComplexParameter -> True,
+    Indices          -> {Index[Generation], Index[Generation]},
+    BlockName        -> GAUL,
+    Value            -> {
+      gAuL[1,1] -> 0, gAuL[1,2] -> 0, gAuL[1,3] -> 0,
+      gAuL[2,1] -> 0, gAuL[2,2] -> 0, gAuL[2,3] -> 0,
+      gAuL[3,1] -> 0, gAuL[3,2] -> 0, gAuL[3,3] -> 0
+    },
+    InteractionOrder -> {NP, 1},
+    TeX              -> Superscript[g, AuL],
+    Description      -> "Left-handed pseudoscalar couplings to up-type quarks; first index labels the barred quark"
+  },
+  gAuR == {
+    ParameterType    -> External,
+    ComplexParameter -> True,
+    Indices          -> {Index[Generation], Index[Generation]},
+    BlockName        -> GAUR,
+    Value            -> {
+      gAuR[1,1] -> 0, gAuR[1,2] -> 0, gAuR[1,3] -> 0,
+      gAuR[2,1] -> 0, gAuR[2,2] -> 0, gAuR[2,3] -> 0,
+      gAuR[3,1] -> 0, gAuR[3,2] -> 0, gAuR[3,3] -> 0
+    },
+    InteractionOrder -> {NP, 1},
+    TeX              -> Superscript[g, AuR],
+    Description      -> "Right-handed pseudoscalar couplings to up-type quarks; first index labels the barred quark"
   },
 
   (* Internal Parameters *)
@@ -706,6 +748,7 @@ LHiggs := Block[{ii,mu, feynmangaugerules},
   ExpandIndices[DC[Phibar[ii],mu] DC[Phi[ii],mu] + muH^2 Phibar[ii] Phi[ii] - lam Phibar[ii] Phi[ii] Phibar[jj] Phi[jj], FlavorExpand->{SU2D,SU2W}]/.feynmangaugerules
  ];
 
+
 LYukawa := Block[{sp,ii,jj,cc,ff1,ff2,ff3,yuk,feynmangaugerules},
   feynmangaugerules = If[Not[FeynmanGauge], {G0|GP|GPbar ->0}, {}];
  
@@ -716,6 +759,21 @@ LYukawa := Block[{sp,ii,jj,cc,ff1,ff2,ff3,yuk,feynmangaugerules},
   yuk = yuk /. { CKM[a_, b_] Conjugate[CKM[a_, c_]] -> IndexDelta[b, c], CKM[b_, a_] Conjugate[CKM[c_, a_]] -> IndexDelta[b, c]};
   yuk+HC[yuk]/.feynmangaugerules
  ];
+
+
+LAP := Block[{mu},
+  1/2 del[AP, mu] del[AP, mu] - 1/2 MA^2 AP AP
+ ];
+
+
+LAPYukawa := Block[{sp,cc,a,b},
+  ExpandIndices[
+    ( gAuR[b,a] QLbar[sp,1,b,cc].uR[sp,a,cc]
+    + gAuL[b,a] uRbar[sp,b,cc].QL[sp,1,a,cc]
+    ) AP,
+    FlavorExpand -> SU2D
+  ]
+];
 
 LGhost := Block[{LGh1,LGhw,LGhs,LGhphi,mu, generators,gh,ghbar,Vectorize,phi1,phi2,togoldstones,doublet,doublet0},
   (* Pure gauge piece *) 	
@@ -737,4 +795,4 @@ LGhost := Block[{LGh1,LGhw,LGhs,LGhphi,mu, generators,gh,ghbar,Vectorize,phi1,ph
 
 ExpandIndices[ LGhs + If[FeynmanGauge, LGh1 + LGhw + LGhphi,0], FlavorExpand->SU2W]];
 
-LSM:= LGauge + LFermions + LHiggs + LYukawa + LGhost;
+Ltot:= LGauge + LFermions + LHiggs + LYukawa + LGhost + LAP + LAPYukawa;
