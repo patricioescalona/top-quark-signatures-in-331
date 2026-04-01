@@ -581,33 +581,25 @@ M$Parameters = {
     TeX           -> Subscript[\[Theta], c],
     Description   -> "Cabibbo angle"
   },
-  gAuL == {
-    ParameterType    -> External,
-    ComplexParameter -> True,
-    Indices          -> {Index[Generation], Index[Generation]},
-    BlockName        -> GAUL,
-    Value            -> {
-      gAuL[1,1] -> 0, gAuL[1,2] -> 0, gAuL[1,3] -> 0,
-      gAuL[2,1] -> 0, gAuL[2,2] -> 0, gAuL[2,3] -> 0,
-      gAuL[3,1] -> 0, gAuL[3,2] -> 0, gAuL[3,3] -> 0
-    },
-    InteractionOrder -> {NP, 1},
-    TeX              -> Superscript[g, AuL],
-    Description      -> "Left-handed pseudoscalar couplings to up-type quarks; first index labels the barred quark"
+  tanphi == {
+    ParameterType -> External,
+    BlockName     -> TANPHI,
+    OrderBlock    -> 1,
+    Value         -> 1,
+    Description   -> "Tangent of the pseudoscalar angle phi"
   },
-  gAuR == {
+  (* i: VLu = CKM^\dagger. ii: VLu=identity iii: 2503.14653 Eq. 17 *)
+  VLu == {
     ParameterType    -> External,
     ComplexParameter -> True,
     Indices          -> {Index[Generation], Index[Generation]},
-    BlockName        -> GAUR,
+    BlockName        -> VLU,
     Value            -> {
-      gAuR[1,1] -> 0, gAuR[1,2] -> 0, gAuR[1,3] -> 0,
-      gAuR[2,1] -> 0, gAuR[2,2] -> 0, gAuR[2,3] -> 0,
-      gAuR[3,1] -> 0, gAuR[3,2] -> 0, gAuR[3,3] -> 0
+      VLu[1,1] -> 1, VLu[1,2] -> 0, VLu[1,3] -> 0,
+      VLu[2,1] -> 0, VLu[2,2] -> 1, VLu[2,3] -> 0,
+      VLu[3,1] -> 0, VLu[3,2] -> 0, VLu[3,3] -> 1
     },
-    InteractionOrder -> {NP, 1},
-    TeX              -> Superscript[g, AuR],
-    Description      -> "Right-handed pseudoscalar couplings to up-type quarks; first index labels the barred quark"
+    Description      -> "Left-handed up-quark rotation matrix"
   },
 
   (* Internal Parameters *)
@@ -675,6 +667,49 @@ M$Parameters = {
     Value            -> 2*MW*sw/ee, 
     InteractionOrder -> {QED,-1},
     Description      -> "Higgs vacuum expectation value"
+  },
+  cotphi == {
+    ParameterType -> Internal,
+    Value         -> 1/tanphi,
+    Description   -> "Cotangent of the pseudoscalar angle phi"
+  },
+  gAuL == {
+    ParameterType    -> Internal,
+    ComplexParameter -> True,
+    Indices          -> {Index[Generation], Index[Generation]},
+    Value            -> {
+      gAuL[1,1] -> -I*(tanphi + cotphi)/vev*Conjugate[VLu[3,1]]*VLu[1,3]*MU,
+      gAuL[1,2] -> -I*(tanphi + cotphi)/vev*Conjugate[VLu[3,2]]*VLu[1,3]*MU,
+      gAuL[1,3] -> -I*(tanphi + cotphi)/vev*Conjugate[VLu[3,3]]*VLu[1,3]*MU,
+      gAuL[2,1] -> -I*(tanphi + cotphi)/vev*Conjugate[VLu[3,1]]*VLu[2,3]*MC,
+      gAuL[2,2] -> -I*(tanphi + cotphi)/vev*Conjugate[VLu[3,2]]*VLu[2,3]*MC,
+      gAuL[2,3] -> -I*(tanphi + cotphi)/vev*Conjugate[VLu[3,3]]*VLu[2,3]*MC,
+      gAuL[3,1] -> -I*(tanphi + cotphi)/vev*Conjugate[VLu[3,1]]*VLu[3,3]*MT,
+      gAuL[3,2] -> -I*(tanphi + cotphi)/vev*Conjugate[VLu[3,2]]*VLu[3,3]*MT,
+      gAuL[3,3] -> -I*(tanphi + cotphi)/vev*Conjugate[VLu[3,3]]*VLu[3,3]*MT
+    },
+    InteractionOrder -> {NP, 1},
+    TeX              -> Superscript[g, AuL],
+    Description      -> "Left-handed pseudoscalar couplings to up-type quarks; first index labels the barred quark"
+  },
+  gAuR == {
+    ParameterType    -> Internal,
+    ComplexParameter -> True,
+    Indices          -> {Index[Generation], Index[Generation]},
+    Value            -> {
+      gAuR[1,1] -> I*(tanphi + cotphi)/vev*Conjugate[VLu[3,1]]*VLu[1,3]*MU,
+      gAuR[1,2] -> I*(tanphi + cotphi)/vev*Conjugate[VLu[3,2]]*VLu[1,3]*MC,
+      gAuR[1,3] -> I*(tanphi + cotphi)/vev*Conjugate[VLu[3,3]]*VLu[1,3]*MT,
+      gAuR[2,1] -> I*(tanphi + cotphi)/vev*Conjugate[VLu[3,1]]*VLu[2,3]*MU,
+      gAuR[2,2] -> I*(tanphi + cotphi)/vev*Conjugate[VLu[3,2]]*VLu[2,3]*MC,
+      gAuR[2,3] -> I*(tanphi + cotphi)/vev*Conjugate[VLu[3,3]]*VLu[2,3]*MT,
+      gAuR[3,1] -> I*(tanphi + cotphi)/vev*Conjugate[VLu[3,1]]*VLu[3,3]*MU,
+      gAuR[3,2] -> I*(tanphi + cotphi)/vev*Conjugate[VLu[3,2]]*VLu[3,3]*MC,
+      gAuR[3,3] -> I*(tanphi + cotphi)/vev*Conjugate[VLu[3,3]]*VLu[3,3]*MT
+    },
+    InteractionOrder -> {NP, 1},
+    TeX              -> Superscript[g, AuR],
+    Description      -> "Right-handed pseudoscalar couplings to up-type quarks; first index labels the barred quark"
   },
   lam == {
     ParameterType    -> Internal,

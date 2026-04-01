@@ -1,6 +1,6 @@
 # This file was automatically created by FeynRules 2.3.49
 # Mathematica version: 13.2.1 for Linux x86 (64-bit) (January 28, 2023)
-# Date: Wed 25 Mar 2026 21:08:30
+# Date: Wed 1 Apr 2026 13:52:45
 
 
 
@@ -25,150 +25,6 @@ cabi = Parameter(name = 'cabi',
                  lhablock = 'CKMBLOCK',
                  lhacode = [ 1 ])
 
-gAuL1x1 = Parameter(name = 'gAuL1x1',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuL1x1}',
-                    lhablock = 'GAUL',
-                    lhacode = [ 1, 1 ])
-
-gAuL1x2 = Parameter(name = 'gAuL1x2',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuL1x2}',
-                    lhablock = 'GAUL',
-                    lhacode = [ 1, 2 ])
-
-gAuL1x3 = Parameter(name = 'gAuL1x3',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuL1x3}',
-                    lhablock = 'GAUL',
-                    lhacode = [ 1, 3 ])
-
-gAuL2x1 = Parameter(name = 'gAuL2x1',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuL2x1}',
-                    lhablock = 'GAUL',
-                    lhacode = [ 2, 1 ])
-
-gAuL2x2 = Parameter(name = 'gAuL2x2',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuL2x2}',
-                    lhablock = 'GAUL',
-                    lhacode = [ 2, 2 ])
-
-gAuL2x3 = Parameter(name = 'gAuL2x3',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuL2x3}',
-                    lhablock = 'GAUL',
-                    lhacode = [ 2, 3 ])
-
-gAuL3x1 = Parameter(name = 'gAuL3x1',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuL3x1}',
-                    lhablock = 'GAUL',
-                    lhacode = [ 3, 1 ])
-
-gAuL3x2 = Parameter(name = 'gAuL3x2',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuL3x2}',
-                    lhablock = 'GAUL',
-                    lhacode = [ 3, 2 ])
-
-gAuL3x3 = Parameter(name = 'gAuL3x3',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuL3x3}',
-                    lhablock = 'GAUL',
-                    lhacode = [ 3, 3 ])
-
-gAuR1x1 = Parameter(name = 'gAuR1x1',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuR1x1}',
-                    lhablock = 'GAUR',
-                    lhacode = [ 1, 1 ])
-
-gAuR1x2 = Parameter(name = 'gAuR1x2',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuR1x2}',
-                    lhablock = 'GAUR',
-                    lhacode = [ 1, 2 ])
-
-gAuR1x3 = Parameter(name = 'gAuR1x3',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuR1x3}',
-                    lhablock = 'GAUR',
-                    lhacode = [ 1, 3 ])
-
-gAuR2x1 = Parameter(name = 'gAuR2x1',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuR2x1}',
-                    lhablock = 'GAUR',
-                    lhacode = [ 2, 1 ])
-
-gAuR2x2 = Parameter(name = 'gAuR2x2',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuR2x2}',
-                    lhablock = 'GAUR',
-                    lhacode = [ 2, 2 ])
-
-gAuR2x3 = Parameter(name = 'gAuR2x3',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuR2x3}',
-                    lhablock = 'GAUR',
-                    lhacode = [ 2, 3 ])
-
-gAuR3x1 = Parameter(name = 'gAuR3x1',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuR3x1}',
-                    lhablock = 'GAUR',
-                    lhacode = [ 3, 1 ])
-
-gAuR3x2 = Parameter(name = 'gAuR3x2',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuR3x2}',
-                    lhablock = 'GAUR',
-                    lhacode = [ 3, 2 ])
-
-gAuR3x3 = Parameter(name = 'gAuR3x3',
-                    nature = 'external',
-                    type = 'complex',
-                    value = 0,
-                    texname = '\\text{gAuR3x3}',
-                    lhablock = 'GAUR',
-                    lhacode = [ 3, 3 ])
-
 aEWM1 = Parameter(name = 'aEWM1',
                   nature = 'external',
                   type = 'real',
@@ -192,6 +48,86 @@ aS = Parameter(name = 'aS',
                texname = '\\alpha _s',
                lhablock = 'SMINPUTS',
                lhacode = [ 3 ])
+
+tanphi = Parameter(name = 'tanphi',
+                   nature = 'external',
+                   type = 'real',
+                   value = 1,
+                   texname = '\\text{tanphi}',
+                   lhablock = 'TANPHI',
+                   lhacode = [ 1 ])
+
+VLu1x1 = Parameter(name = 'VLu1x1',
+                   nature = 'external',
+                   type = 'complex',
+                   value = 1,
+                   texname = '\\text{VLu1x1}',
+                   lhablock = 'VLU',
+                   lhacode = [ 1, 1 ])
+
+VLu1x2 = Parameter(name = 'VLu1x2',
+                   nature = 'external',
+                   type = 'complex',
+                   value = 0,
+                   texname = '\\text{VLu1x2}',
+                   lhablock = 'VLU',
+                   lhacode = [ 1, 2 ])
+
+VLu1x3 = Parameter(name = 'VLu1x3',
+                   nature = 'external',
+                   type = 'complex',
+                   value = 0,
+                   texname = '\\text{VLu1x3}',
+                   lhablock = 'VLU',
+                   lhacode = [ 1, 3 ])
+
+VLu2x1 = Parameter(name = 'VLu2x1',
+                   nature = 'external',
+                   type = 'complex',
+                   value = 0,
+                   texname = '\\text{VLu2x1}',
+                   lhablock = 'VLU',
+                   lhacode = [ 2, 1 ])
+
+VLu2x2 = Parameter(name = 'VLu2x2',
+                   nature = 'external',
+                   type = 'complex',
+                   value = 1,
+                   texname = '\\text{VLu2x2}',
+                   lhablock = 'VLU',
+                   lhacode = [ 2, 2 ])
+
+VLu2x3 = Parameter(name = 'VLu2x3',
+                   nature = 'external',
+                   type = 'complex',
+                   value = 0,
+                   texname = '\\text{VLu2x3}',
+                   lhablock = 'VLU',
+                   lhacode = [ 2, 3 ])
+
+VLu3x1 = Parameter(name = 'VLu3x1',
+                   nature = 'external',
+                   type = 'complex',
+                   value = 0,
+                   texname = '\\text{VLu3x1}',
+                   lhablock = 'VLU',
+                   lhacode = [ 3, 1 ])
+
+VLu3x2 = Parameter(name = 'VLu3x2',
+                   nature = 'external',
+                   type = 'complex',
+                   value = 0,
+                   texname = '\\text{VLu3x2}',
+                   lhablock = 'VLU',
+                   lhacode = [ 3, 2 ])
+
+VLu3x3 = Parameter(name = 'VLu3x3',
+                   nature = 'external',
+                   type = 'complex',
+                   value = 1,
+                   texname = '\\text{VLu3x3}',
+                   lhablock = 'VLU',
+                   lhacode = [ 3, 3 ])
 
 ymdo = Parameter(name = 'ymdo',
                  nature = 'external',
@@ -413,6 +349,12 @@ G = Parameter(name = 'G',
               value = '2*cmath.sqrt(aS)*cmath.sqrt(cmath.pi)',
               texname = 'G')
 
+cotphi = Parameter(name = 'cotphi',
+                   nature = 'internal',
+                   type = 'real',
+                   value = '1/tanphi',
+                   texname = '\\text{cotphi}')
+
 CKM1x1 = Parameter(name = 'CKM1x1',
                    nature = 'internal',
                    type = 'complex',
@@ -514,6 +456,114 @@ vev = Parameter(name = 'vev',
                 type = 'real',
                 value = '(2*MW*sw)/ee',
                 texname = '\\text{vev}')
+
+gAuL1x1 = Parameter(name = 'gAuL1x1',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '-((complex(0,1)*MU*(cotphi + tanphi)*VLu1x3*complexconjugate(VLu3x1))/vev)',
+                    texname = '\\text{gAuL1x1}')
+
+gAuL1x2 = Parameter(name = 'gAuL1x2',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '-((complex(0,1)*MU*(cotphi + tanphi)*VLu1x3*complexconjugate(VLu3x2))/vev)',
+                    texname = '\\text{gAuL1x2}')
+
+gAuL1x3 = Parameter(name = 'gAuL1x3',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '-((complex(0,1)*MU*(cotphi + tanphi)*VLu1x3*complexconjugate(VLu3x3))/vev)',
+                    texname = '\\text{gAuL1x3}')
+
+gAuL2x1 = Parameter(name = 'gAuL2x1',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '-((complex(0,1)*MC*(cotphi + tanphi)*VLu2x3*complexconjugate(VLu3x1))/vev)',
+                    texname = '\\text{gAuL2x1}')
+
+gAuL2x2 = Parameter(name = 'gAuL2x2',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '-((complex(0,1)*MC*(cotphi + tanphi)*VLu2x3*complexconjugate(VLu3x2))/vev)',
+                    texname = '\\text{gAuL2x2}')
+
+gAuL2x3 = Parameter(name = 'gAuL2x3',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '-((complex(0,1)*MC*(cotphi + tanphi)*VLu2x3*complexconjugate(VLu3x3))/vev)',
+                    texname = '\\text{gAuL2x3}')
+
+gAuL3x1 = Parameter(name = 'gAuL3x1',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '-((complex(0,1)*MT*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu3x1))/vev)',
+                    texname = '\\text{gAuL3x1}')
+
+gAuL3x2 = Parameter(name = 'gAuL3x2',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '-((complex(0,1)*MT*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu3x2))/vev)',
+                    texname = '\\text{gAuL3x2}')
+
+gAuL3x3 = Parameter(name = 'gAuL3x3',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '-((complex(0,1)*MT*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu3x3))/vev)',
+                    texname = '\\text{gAuL3x3}')
+
+gAuR1x1 = Parameter(name = 'gAuR1x1',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '(complex(0,1)*MU*(cotphi + tanphi)*VLu1x3*complexconjugate(VLu3x1))/vev',
+                    texname = '\\text{gAuR1x1}')
+
+gAuR1x2 = Parameter(name = 'gAuR1x2',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '(complex(0,1)*MC*(cotphi + tanphi)*VLu1x3*complexconjugate(VLu3x2))/vev',
+                    texname = '\\text{gAuR1x2}')
+
+gAuR1x3 = Parameter(name = 'gAuR1x3',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '(complex(0,1)*MT*(cotphi + tanphi)*VLu1x3*complexconjugate(VLu3x3))/vev',
+                    texname = '\\text{gAuR1x3}')
+
+gAuR2x1 = Parameter(name = 'gAuR2x1',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '(complex(0,1)*MU*(cotphi + tanphi)*VLu2x3*complexconjugate(VLu3x1))/vev',
+                    texname = '\\text{gAuR2x1}')
+
+gAuR2x2 = Parameter(name = 'gAuR2x2',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '(complex(0,1)*MC*(cotphi + tanphi)*VLu2x3*complexconjugate(VLu3x2))/vev',
+                    texname = '\\text{gAuR2x2}')
+
+gAuR2x3 = Parameter(name = 'gAuR2x3',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '(complex(0,1)*MT*(cotphi + tanphi)*VLu2x3*complexconjugate(VLu3x3))/vev',
+                    texname = '\\text{gAuR2x3}')
+
+gAuR3x1 = Parameter(name = 'gAuR3x1',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '(complex(0,1)*MU*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu3x1))/vev',
+                    texname = '\\text{gAuR3x1}')
+
+gAuR3x2 = Parameter(name = 'gAuR3x2',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '(complex(0,1)*MC*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu3x2))/vev',
+                    texname = '\\text{gAuR3x2}')
+
+gAuR3x3 = Parameter(name = 'gAuR3x3',
+                    nature = 'internal',
+                    type = 'complex',
+                    value = '(complex(0,1)*MT*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu3x3))/vev',
+                    texname = '\\text{gAuR3x3}')
 
 lam = Parameter(name = 'lam',
                 nature = 'internal',
