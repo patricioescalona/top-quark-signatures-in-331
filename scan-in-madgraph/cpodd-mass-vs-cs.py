@@ -177,7 +177,8 @@ def mtime_ns(path: Path) -> int | None:
 
 
 def build_card(process: str, pdg: int, mass: str) -> str:
-    return f"""launch {process}
+    return f"""set automatic_html_opening False --no_save
+launch {process}
 set mass {pdg} {mass}
 done
 """
