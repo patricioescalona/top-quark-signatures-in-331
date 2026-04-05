@@ -16,7 +16,7 @@ DEFAULT_RESULTS_DIR = REPO_ROOT / "results"
 DEFAULT_MG5_BIN = Path(
     os.environ.get("MG5_BIN_DIR", "/home/patricio/Documents/mg5amcnlo-3.x/bin")
 )
-DEFAULT_PROCESS = "top-pseudoscalar-test"
+DEFAULT_PROCESS = "varI-BM3-tt"
 DEFAULT_PDG = 36
 
 
