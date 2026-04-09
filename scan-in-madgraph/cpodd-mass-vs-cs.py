@@ -18,6 +18,7 @@ DEFAULT_MG5_BIN = Path(
 )
 DEFAULT_PROCESS = "varI-BM3-tt"
 DEFAULT_PDG = 36
+DEFAULT_TANPHI = "60"
 
 
 @dataclass
@@ -54,6 +55,11 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=DEFAULT_PDG,
         help="PDG code of the particle whose mass will be scanned.",
+    )
+    parser.add_argument(
+        "--tanphi",
+        default=DEFAULT_TANPHI,
+        help="Value assigned to TANPHI block entry 1 in the param card.",
     )
     parser.add_argument(
         "--output-name",
@@ -176,19 +182,22 @@ def mtime_ns(path: Path) -> int | None:
     return path.stat().st_mtime_ns
 
 
-def build_card(process: str, pdg: int, mass: str) -> str:
+def build_card(process: str, pdg: int, mass: str, tanphi: str) -> str:
     return f"""set automatic_html_opening False --no_save
 launch {process}
-set mass {pdg} {mass}
+set param_card mass {pdg} {mass}
+set param_card tanphi 1 {tanphi}
 done
 """
 
 
-def run_mg5(mg5_bin: Path, process: str, pdg: int, mass: str) -> subprocess.CompletedProcess[str]:
+def run_mg5(
+    mg5_bin: Path, process: str, pdg: int, mass: str, tanphi: str
+) -> subprocess.CompletedProcess[str]:
     mg5_executable = mg5_bin / "mg5_aMC"
     with tempfile.TemporaryDirectory(prefix="mg5-scan-") as tmpdir:
         card_path = Path(tmpdir) / f"{process}_{mass}.mg5"
-        card_path.write_text(build_card(process, pdg, mass), encoding="utf-8")
+        card_path.write_text(build_card(process, pdg, mass, tanphi), encoding="utf-8")
         return subprocess.run(
             [str(mg5_executable), str(card_path)],
             cwd=str(mg5_bin),
@@ -291,6 +300,7 @@ def main() -> int:
         print(f"MadGraph bin : {mg5_bin}")
         print(f"Process dir  : {process_dir}")
         print(f"Results file : {summary_path}")
+        print(f"tanphi       : {args.tanphi}")
         print(f"Mass points  : {', '.join(format_decimal(mass) for mass in masses)}")
         return 0
 
@@ -303,7 +313,7 @@ def main() -> int:
         before_runs = list_run_directories(events_dir)
         results_before = mtime_ns(results_dat)
 
-        completed = run_mg5(mg5_bin, args.process, args.pdg, mass_text)
+        completed = run_mg5(mg5_bin, args.process, args.pdg, mass_text, args.tanphi)
 
         after_runs = list_run_directories(events_dir)
         run_name = detect_new_run(before_runs, after_runs)
