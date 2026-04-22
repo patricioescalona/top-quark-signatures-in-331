@@ -11,8 +11,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_RESULTS_DIR = REPO_ROOT / "results"
+SCAN_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_RESULTS_DIR = SCAN_ROOT / "results"
 DEFAULT_MG5_BIN = Path(
     os.environ.get("MG5_BIN_DIR", "/home/patricio/Documents/mg5amcnlo-3.x/bin")
 )
@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Scan a mass parameter in an already-generated local MadGraph process "
-            "directory and save only the final summary table in this repository."
+            "directory and save the final summary table under cross-section-scan/results/."
         )
     )
     parser.add_argument(
@@ -64,7 +64,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-name",
         default="top-pseudoscalar-scan",
-        help="Base name for the summary file written in results/.",
+        help="Base name for the summary file written in cross-section-scan/results/.",
     )
     parser.add_argument(
         "--output-format",

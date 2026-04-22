@@ -13,9 +13,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_RESULTS = REPO_ROOT / "results"
-DEFAULT_FIGURES = REPO_ROOT / "figures"
+SCAN_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_RESULTS = SCAN_ROOT / "results"
+DEFAULT_FIGURES = SCAN_ROOT / "figures"
 
 
 def parse_args() -> argparse.Namespace:
@@ -44,7 +44,7 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=DEFAULT_FIGURES / "varI-BM3-channels.pdf",
-        help="Output figure path.",
+        help="Output figure path. By default this goes to cross-section-scan/figures/.",
     )
     return parser.parse_args()
 
