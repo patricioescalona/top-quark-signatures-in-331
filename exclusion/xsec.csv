@@ -1,0 +1,7 @@
+process,cross section pb,cross section error pb,N events (generated),description
+1,1.428851e-01,1.479337e-03,6,"p p > t t, (t > b w+, w+ > l+ vl), (t > b w+, w+ > l+ vl)"
+2,1.296571e-01,1.161533e-03,6,"p p > t~ t~, (t~ > b~ w-, w- > l- vl~), (t~ > b~ w-, w- > l- vl~)"
+3,4.113679e-01,3.958406e-03,6,"p p > h3 t, (h3 > t c~, (t > b w+, w+ > l+ vl)), (t > b w+, w+ > l+ vl)"
+4,3.738408e-01,3.683466e-03,6,"p p > h3 t~, (h3 > t~ c, (t~ > b~ w-, w- > l- vl~)), (t~ > b~w-, w- > l- vl~)"
+5,2.750067e-03,4.885001e-05,6,"p p > h3 h3, (h3 > t c~, (t > b w+, w+ > l+ vl)), (h3 > t c~,(t > b w+, w+ > l+ vl))"
+6,2.565589e-03,4.557391e-05,6,"p p > h3 h3, (h3 > t~ c, (t~ > b~ w-, w- > l- vl~)), (h3 > t~c, (t~ > b~ w-, w- > l- vl~))"
