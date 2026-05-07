@@ -221,6 +221,8 @@ def compute_efficiency_rows(
     parquet_entries: list[tuple[int, Path]],
     process_weights: dict[int, dict[str, float]],
 ) -> list[dict[str, str]]:
+    luminosity_450_fb = 450.0
+    luminosity_3000_fb = 3000.0
     weighted_total = 0.0
     weighted_cut_i = 0.0
     weighted_cut_ii = 0.0
@@ -242,17 +244,35 @@ def compute_efficiency_rows(
     if weighted_total <= 0.0:
         raise ValueError("The total weighted yield is zero; efficiencies are undefined.")
 
+    def build_efficiency_row(cut_label: str, cross_section_pb: float) -> dict[str, str]:
+        return {
+            "cut": cut_label,
+            "efficiency": f"{cross_section_pb / weighted_total:.6f}",
+            "cross_section_pb": f"{cross_section_pb:.6f}",
+            "yield_450_fb": f"{cross_section_pb * luminosity_450_fb * 1000.0:.6f}",
+            "yield_3000_fb": f"{cross_section_pb * luminosity_3000_fb * 1000.0:.6f}",
+        }
+
     return [
-        {"cut": "I", "efficiency": f"{weighted_cut_i / weighted_total:.6f}"},
-        {"cut": "II", "efficiency": f"{weighted_cut_ii / weighted_total:.6f}"},
-        {"cut": "III", "efficiency": f"{weighted_cut_iii / weighted_total:.6f}"},
-        {"cut": "IV", "efficiency": f"{weighted_cut_iv / weighted_total:.6f}"},
+        build_efficiency_row("I", weighted_cut_i),
+        build_efficiency_row("II", weighted_cut_ii),
+        build_efficiency_row("III", weighted_cut_iii),
+        build_efficiency_row("IV", weighted_cut_iv),
     ]
 
 
 def write_efficiencies_csv(output_path: Path, rows: list[dict[str, str]]) -> None:
     with output_path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["cut", "efficiency"])
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "cut",
+                "efficiency",
+                "cross_section_pb",
+                "yield_450_fb",
+                "yield_3000_fb",
+            ],
+        )
         writer.writeheader()
         writer.writerows(rows)
 
