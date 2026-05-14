@@ -1,0 +1,13 @@
+set automatic_html_opening False --no_save
+set notification_center False --no_save
+
+launch proc-decays
+shower=OFF
+detector=OFF
+analysis=OFF
+set nevents 2
+set mass 36 2000
+set tanphi 1 100
+set width 36 Auto
+set ebeam1 7000
+set ebeam2 7000
