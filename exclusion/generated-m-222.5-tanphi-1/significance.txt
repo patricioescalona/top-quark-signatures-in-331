@@ -1,0 +1,20 @@
+Luminosity: 130 fb^-1
+Signal sample: m=222.5, tanphi=1
+Background sample: background
+
+Cut efficiencies (cumulative)
+cut           | signal | background
+--------------+--------+-----------
+After cut I   | 83.95% | 8.76%     
+After cut II  | 79.31% | 8.38%     
+After cut III | 28.70% | 3.11%     
+After cut IV  | 13.19% | 1.82%     
+
+Asimov significance
+stage         | signal yield [events] | background yield [events] | Z_A     
+--------------+-----------------------+---------------------------+---------
+Before cuts   | 89.110070             | 2191.433400               | 1.890856
+After cut I   | 74.750000             | 191.880000                | 5.092950
+After cut II  | 70.720000             | 183.560000                | 4.929186
+After cut III | 25.610000             | 68.120000                 | 2.933834
+After cut IV  | 11.700000             | 39.780000                 | 1.773721

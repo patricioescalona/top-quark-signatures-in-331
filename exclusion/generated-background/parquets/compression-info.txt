@@ -1,0 +1,5 @@
+Sample: background
+Wrote 1 compressed event Parquet file.
+ROOT vs Parquet sizes:
+proc-1-background: 6.296196 GB -> 0.012783 GB
+total: 6.296196 GB -> 0.012783 GB
