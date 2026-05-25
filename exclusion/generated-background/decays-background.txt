@@ -1,11 +1,12 @@
 sample: background
-mass: n/a
-tanphi: n/a
-total width (GeV): n/a
 
 Processes:
-p p > j j w+ w+ QCD=0, (w+ > l+ vl), (w+ > l+ vl)
-p p > j j w- w- QCD=0, (w- > l- vl~), (w- > l- vl~)
+proc 1: p p > t t~, (t > b w+, (w+ > l+ vl)), (t~ > b~ w-, (w- > l- vl~))
+proc 2: p p > t w-, (t > b w+, (w+ > l+ vl)), (w- > l- vl~)
+proc 2: p p > t~ w+, (t~ > b~ w-, (w- > l- vl~)), (w+ > l+ vl)
+proc 3: p p > l+ l- b b~
+proc 4: p p > j j w+ w+ QCD=0, (w+ > l+ vl), (w+ > l+ vl)
+proc 4: p p > j j w- w- QCD=0, (w- > l- vl~), (w- > l- vl~)
 
 BR(a -> X):
 not applicable for this background sample

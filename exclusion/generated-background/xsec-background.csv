@@ -1,2 +1,5 @@
 process,mass,tanphi,cross section pb,cross section error pb,N events (generated),description
-1,,,1.685718e-02,1.512299e-05,100000,"p p > j j w+ w+ QCD=0, (w+ > l+ vl), (w+ > l+ vl) ; p p > j j w- w- QCD=0, (w- > l- vl~), (w- > l- vl~)"
+1,,,2.686620e+01,1.872000e-02,100000,"p p > t t~, (t > b w+, (w+ > l+ vl)), (t~ > b~ w-, (w- > l- vl~))"
+2,,,3.016480e+00,2.995564e-03,100000,"p p > t w-, (t > b w+, (w+ > l+ vl)), (w- > l- vl~) ; p p > t~ w+, (t~ > b~ w-, (w- > l- vl~)), (w+ > l+ vl)"
+3,,,5.858455e+01,6.150682e-02,100000,p p > l+ l- b b~
+4,,,1.685718e-02,1.512299e-05,100000,"p p > j j w+ w+ QCD=0, (w+ > l+ vl), (w+ > l+ vl) ; p p > j j w- w- QCD=0, (w- > l- vl~), (w- > l- vl~)"

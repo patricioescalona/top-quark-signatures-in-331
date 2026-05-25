@@ -19,7 +19,8 @@ from matplotlib.colors import LogNorm
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_INPUT = BASE_DIR / "significance-summary.txt"
-DEFAULT_OUTPUT = BASE_DIR / "significance-map.png"
+DEFAULT_OUTPUT = BASE_DIR / "significance-map-comparison.png"
+DEFAULT_LUMINOSITIES_FB = (450.0, 3000.0)
 
 
 def parse_args() -> argparse.Namespace:
@@ -38,29 +39,67 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=DEFAULT_OUTPUT,
-        help="Output image path. Default: exclusion/significance-map.png",
+        help=(
+            "Output image path for the combined comparison plot. "
+            "Default: exclusion/significance-map-comparison.png"
+        ),
+    )
+    parser.add_argument(
+        "--luminosities",
+        type=float,
+        nargs="+",
+        default=list(DEFAULT_LUMINOSITIES_FB),
+        help=(
+            "Luminosity columns to plot from significance-summary.txt. "
+            "Default: 450 3000"
+        ),
     )
     return parser.parse_args()
 
 
-def load_summary(summary_path: Path) -> list[tuple[float, float, float]]:
+def load_summary(
+    summary_path: Path,
+    luminosity_fb: float,
+) -> list[tuple[float, float, float]]:
     if not summary_path.is_file():
         raise FileNotFoundError(f"Summary file not found: {summary_path}")
 
     rows: list[tuple[float, float, float]] = []
+    target_column = f"Z_A_{luminosity_fb:g}fb"
+    column_index: int | None = None
     with summary_path.open("r", encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
             stripped = line.strip()
-            if not stripped or stripped.startswith("m |"):
+            if not stripped:
                 continue
 
             parts = [part.strip() for part in stripped.split("|")]
-            if len(parts) != 3:
+            if line_number == 1:
+                if len(parts) < 3:
+                    raise ValueError(
+                        f"Expected at least 3 columns in the header of {summary_path}."
+                    )
+                try:
+                    column_index = parts.index(target_column)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"Column {target_column} not found in {summary_path}. "
+                        f"Available columns: {parts}"
+                    ) from exc
+                continue
+
+            parts = [part.strip() for part in stripped.split("|")]
+            if column_index is None:
+                raise ValueError(f"Could not parse the header of {summary_path}")
+            if len(parts) <= column_index:
                 raise ValueError(
-                    f"Expected 3 columns in {summary_path} at line {line_number}, got: {stripped}"
+                    f"Expected column {target_column} in {summary_path} at line "
+                    f"{line_number}, got: {stripped}"
                 )
 
-            mass, tanphi, significance = map(float, parts)
+            mass = float(parts[0])
+            tanphi = float(parts[1])
+            significance = float(parts[column_index])
             rows.append((mass, tanphi, significance))
 
     if not rows:
@@ -70,43 +109,67 @@ def load_summary(summary_path: Path) -> list[tuple[float, float, float]]:
 
 
 def make_plot(
-    rows: list[tuple[float, float, float]],
+    rows_by_luminosity: list[tuple[float, list[tuple[float, float, float]]]],
     output_path: Path,
 ) -> Path:
-    masses = np.array([row[0] for row in rows], dtype=float)
-    tanphis = np.array([row[1] for row in rows], dtype=float)
-    significances = np.array([row[2] for row in rows], dtype=float)
-
-    positive_significances = significances[significances > 0.0]
+    all_significances = np.concatenate(
+        [
+            np.array([row[2] for row in rows], dtype=float)
+            for _, rows in rows_by_luminosity
+        ]
+    )
+    positive_significances = all_significances[all_significances > 0.0]
     if positive_significances.size == 0:
         raise ValueError("All significances are zero; logarithmic color scale is undefined.")
 
-    color_values = significances.copy()
-    min_positive = float(np.min(positive_significances))
-    color_values[color_values <= 0.0] = min_positive
+    shared_vmin = float(np.min(positive_significances))
+    shared_vmax = float(np.max(all_significances))
+    norm = LogNorm(vmin=shared_vmin, vmax=shared_vmax)
 
-    fig, ax = plt.subplots(figsize=(7.5, 5.5), constrained_layout=True)
-    scatter = ax.scatter(
-        masses,
-        tanphis,
-        c=color_values,
-        cmap="viridis",
-        norm=LogNorm(vmin=min_positive, vmax=float(np.max(color_values))),
-        s=140,
-        edgecolors="black",
-        linewidths=0.4,
+    fig, axes = plt.subplots(
+        1,
+        len(rows_by_luminosity),
+        figsize=(7.5 * len(rows_by_luminosity), 5.5),
+        constrained_layout=True,
+        squeeze=False,
     )
-    colorbar = fig.colorbar(scatter, ax=ax)
-    colorbar.set_label(r"$Z_A$ after cuts")
+    axes_row = axes[0]
+    scatter = None
 
-    ax.set_xlabel("Mass")
-    ax.set_ylabel("tanphi")
-    ax.set_yscale("log")
-    ax.set_xticks(sorted(set(masses)))
-    ax.set_yticks(sorted(set(tanphis)))
-    ax.set_yticklabels([f"{value:g}" for value in sorted(set(tanphis))])
-    ax.set_title(r"Final Asimov Significance $Z_A$")
-    ax.grid(True, which="both", linestyle=":", linewidth=0.6, alpha=0.5)
+    for index, (luminosity_fb, rows) in enumerate(rows_by_luminosity):
+        ax = axes_row[index]
+        masses = np.array([row[0] for row in rows], dtype=float)
+        tanphis = np.array([row[1] for row in rows], dtype=float)
+        significances = np.array([row[2] for row in rows], dtype=float)
+
+        color_values = significances.copy()
+        color_values[color_values <= 0.0] = shared_vmin
+
+        scatter = ax.scatter(
+            masses,
+            tanphis,
+            c=color_values,
+            cmap="viridis",
+            norm=norm,
+            s=140,
+            edgecolors="black",
+            linewidths=0.4,
+        )
+        ax.set_xlabel("Mass")
+        if index == 0:
+            ax.set_ylabel("tanphi")
+        ax.set_yscale("log")
+        ax.set_xticks(sorted(set(masses)))
+        ax.set_yticks(sorted(set(tanphis)))
+        ax.set_yticklabels([f"{value:g}" for value in sorted(set(tanphis))])
+        ax.set_title(rf"$Z_A$ at {luminosity_fb:g} fb$^{{-1}}$")
+        ax.grid(True, which="both", linestyle=":", linewidth=0.6, alpha=0.5)
+
+    if scatter is None:
+        raise ValueError("No luminosity panels were created.")
+
+    colorbar = fig.colorbar(scatter, ax=list(axes_row), pad=0.02)
+    colorbar.set_label(r"$Z_A$ after cuts")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=200)
@@ -116,8 +179,11 @@ def make_plot(
 
 def main() -> int:
     args = parse_args()
-    rows = load_summary(args.input.resolve())
-    output_path = make_plot(rows, args.output.resolve())
+    rows_by_luminosity = [
+        (luminosity_fb, load_summary(args.input.resolve(), luminosity_fb))
+        for luminosity_fb in args.luminosities
+    ]
+    output_path = make_plot(rows_by_luminosity, args.output.resolve())
     print(f"Wrote {output_path}")
     return 0
 

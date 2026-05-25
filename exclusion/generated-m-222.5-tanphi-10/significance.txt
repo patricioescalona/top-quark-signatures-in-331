@@ -1,20 +1,29 @@
-Luminosity: 130 fb^-1
+Luminosities: 450 fb^-1, 3000 fb^-1
 Signal sample: m=222.5, tanphi=10
-Background sample: background
+Background sample: background (4 processes)
 
 Cut efficiencies (cumulative)
 cut           | signal | background
 --------------+--------+-----------
-After cut I   | 83.45% | 8.76%     
-After cut II  | 78.51% | 8.38%     
-After cut III | 27.71% | 3.11%     
-After cut IV  | 12.63% | 1.82%     
+After cut I   | 83.45% | 46.04%    
+After cut II  | 78.51% | 30.64%    
+After cut III | 27.71% | 0.00%     
+After cut IV  | 12.63% | 0.00%     
 
-Asimov significance
+Asimov significance (450 fb^-1)
 stage         | signal yield [events] | background yield [events] | Z_A      
 --------------+-----------------------+---------------------------+----------
-Before cuts   | 2296.644972           | 2191.433400               | 42.911963
-After cut I   | 1916.460000           | 191.880000                | 79.205806
-After cut II  | 1802.970000           | 183.560000                | 76.526544
-After cut III | 636.350000            | 68.120000                 | 44.931395
-After cut IV  | 290.160000            | 39.780000                 | 28.560232
+Before cuts   | 7949.924905           | 39817839.231000           | 1.259824 
+After cut I   | 6633.900000           | 18334088.100000           | 1.549220 
+After cut II  | 6241.050000           | 12198290.850000           | 1.786780 
+After cut III | 2202.750000           | 1647.000000               | 46.171222
+After cut IV  | 1004.400000           | 648.450000                | 32.927938
+
+Asimov significance (3000 fb^-1)
+stage         | signal yield [events] | background yield [events] | Z_A       
+--------------+-----------------------+---------------------------+-----------
+Before cuts   | 52999.499364          | 265452261.540000          | 3.252850  
+After cut I   | 44226.000000          | 122227254.000000          | 4.000069  
+After cut II  | 41607.000000          | 81321939.000000           | 4.613447  
+After cut III | 14685.000000          | 10980.000000              | 119.213582
+After cut IV  | 6696.000000           | 4323.000000               | 85.019571 

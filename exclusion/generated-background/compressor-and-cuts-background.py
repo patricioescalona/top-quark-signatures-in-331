@@ -17,6 +17,7 @@ import vector
 DELHES_TREE_CANDIDATES = ("Delphes", "Events")
 BANNER_PATTERN = re.compile(r"^run_(\d+)_tag_(\d+)_banner\.txt$")
 ROOT_PATTERN = re.compile(r"^tag_(\d+)_delphes_events\.root$")
+PROC_BG_DIR_PATTERN = re.compile(r"^proc-bg-(\d+)$")
 DEFAULT_LABEL = "background"
 DEFAULT_PROCESS_NUMBER = 1
 DEFAULT_STEP_SIZE = "250 MB"
@@ -58,15 +59,18 @@ def parse_args() -> argparse.Namespace:
     script_dir = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(
         description=(
-            "Compress one generated background run into parquet and write the same "
+            "Compress generated background runs into parquet and write the same "
             "analysis outputs used for the signal samples."
         )
     )
     parser.add_argument(
         "--run-dir",
         type=Path,
-        default=script_dir / "run_01",
-        help="Background run directory containing the banner and Delphes ROOT file.",
+        help=(
+            "Optional single background run directory containing the banner and "
+            "Delphes ROOT file. When omitted, all proc-bg-* folders in the output "
+            "directory are processed."
+        ),
     )
     parser.add_argument(
         "--output-dir",
@@ -82,8 +86,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--process-number",
         type=int,
-        default=DEFAULT_PROCESS_NUMBER,
-        help="Process number stored in the output tables. Default: 1",
+        help=(
+            "Process number stored in the output tables when --run-dir is used. "
+            "Default: 1"
+        ),
     )
     parser.add_argument(
         "--step-size",
@@ -94,6 +100,9 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     args = parser.parse_args()
+
+    if args.process_number is None:
+        args.process_number = DEFAULT_PROCESS_NUMBER
 
     if args.process_number <= 0:
         parser.error("--process-number must be a positive integer.")
@@ -140,6 +149,29 @@ def build_decay_output_path(output_dir: Path, label: str) -> Path:
 
 def build_compression_summary_path(output_dir: Path) -> Path:
     return build_parquet_dir(output_dir) / "compression-info.txt"
+
+
+def discover_background_process_runs(output_dir: Path) -> list[tuple[int, Path]]:
+    process_runs: list[tuple[int, Path]] = []
+    for proc_dir in sorted(output_dir.glob("proc-bg-*")):
+        if not proc_dir.is_dir():
+            continue
+
+        match = PROC_BG_DIR_PATTERN.fullmatch(proc_dir.name)
+        if match is None:
+            continue
+
+        process_number = int(match.group(1))
+        run_dir = proc_dir / "Events" / "run_01"
+        if not run_dir.is_dir():
+            raise FileNotFoundError(f"Run directory not found for {proc_dir}: {run_dir}")
+
+        process_runs.append((process_number, run_dir.resolve()))
+
+    if not process_runs:
+        raise FileNotFoundError(f"No proc-bg-* run directories found in {output_dir}")
+
+    return process_runs
 
 
 def discover_latest_banner(run_dir: Path) -> Path:
@@ -684,6 +716,65 @@ def build_efficiency_rows_from_cutflow(
     ]
 
 
+def build_efficiency_rows_from_process_rows(
+    cutflow_rows: list[dict[str, int]],
+    xsec_rows: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    cutflow_by_process = {int(row["proc"]): row for row in cutflow_rows}
+    xsec_by_process = {int(row["process"]): row for row in xsec_rows}
+
+    if set(cutflow_by_process) != set(xsec_by_process):
+        raise ValueError(
+            "Cutflow rows and cross-section rows do not cover the same processes: "
+            f"{sorted(cutflow_by_process)} vs {sorted(xsec_by_process)}."
+        )
+
+    weighted_total = 0.0
+    weighted_cut_i = 0.0
+    weighted_cut_ii = 0.0
+    weighted_cut_iii = 0.0
+    weighted_cut_iv = 0.0
+
+    for process_number in sorted(cutflow_by_process):
+        cutflow_row = cutflow_by_process[process_number]
+        xsec_row = xsec_by_process[process_number]
+        cross_section_pb = float(xsec_row["cross section pb"])
+        generated_events = int(xsec_row["N events (generated)"])
+        if generated_events <= 0:
+            raise ValueError(
+                f"Generated event count must be positive for process {process_number}."
+            )
+
+        event_weight_pb = cross_section_pb / generated_events
+        weighted_total += cross_section_pb
+        weighted_cut_i += cutflow_row["pass_cut_i_bjet"] * event_weight_pb
+        weighted_cut_ii += cutflow_row["pass_cut_ii_met"] * event_weight_pb
+        weighted_cut_iii += cutflow_row["pass_cut_iii_same_sign_dilepton"] * event_weight_pb
+        weighted_cut_iv += cutflow_row["pass_cut_iv_mll"] * event_weight_pb
+
+    if weighted_total <= 0.0:
+        raise ValueError("The total weighted yield is zero; efficiencies are undefined.")
+
+    luminosity_450_fb = 450.0
+    luminosity_3000_fb = 3000.0
+
+    def build_efficiency_row(cut_label: str, cut_cross_section_pb: float) -> dict[str, str]:
+        return {
+            "cut": cut_label,
+            "efficiency": f"{cut_cross_section_pb / weighted_total:.6f}",
+            "cross_section_pb": f"{cut_cross_section_pb:.6f}",
+            "yield_450_fb": f"{cut_cross_section_pb * luminosity_450_fb * 1000.0:.6f}",
+            "yield_3000_fb": f"{cut_cross_section_pb * luminosity_3000_fb * 1000.0:.6f}",
+        }
+
+    return [
+        build_efficiency_row("I", weighted_cut_i),
+        build_efficiency_row("II", weighted_cut_ii),
+        build_efficiency_row("III", weighted_cut_iii),
+        build_efficiency_row("IV", weighted_cut_iv),
+    ]
+
+
 def write_efficiencies_csv(output_path: Path, rows: list[dict[str, str]]) -> Path:
     with output_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
@@ -751,91 +842,145 @@ def format_file_size(num_bytes: int) -> str:
 
 def build_compression_summary_lines(
     label: str,
-    root_path: Path,
-    parquet_path: Path,
+    root_and_parquet_paths: list[tuple[int, Path, Path]],
 ) -> list[str]:
-    root_size = root_path.stat().st_size
-    parquet_size = parquet_path.stat().st_size
-    return [
+    total_root_size = 0
+    total_parquet_size = 0
+    lines = [
         f"Sample: {label}",
-        "Wrote 1 compressed event Parquet file.",
+        f"Wrote {len(root_and_parquet_paths)} compressed event Parquet file(s).",
         "ROOT vs Parquet sizes:",
-        f"{parquet_path.stem}: {format_file_size(root_size)} -> {format_file_size(parquet_size)}",
-        f"total: {format_file_size(root_size)} -> {format_file_size(parquet_size)}",
     ]
+
+    for process_number, root_path, parquet_path in root_and_parquet_paths:
+        root_size = root_path.stat().st_size
+        parquet_size = parquet_path.stat().st_size
+        total_root_size += root_size
+        total_parquet_size += parquet_size
+        lines.append(
+            f"proc-{process_number}: {format_file_size(root_size)} -> "
+            f"{format_file_size(parquet_size)}"
+        )
+
+    lines.append(
+        f"total: {format_file_size(total_root_size)} -> "
+        f"{format_file_size(total_parquet_size)}"
+    )
+    return lines
 
 
 def write_compression_summary(
     output_path: Path,
     label: str,
-    root_path: Path,
-    parquet_path: Path,
+    root_and_parquet_paths: list[tuple[int, Path, Path]],
 ) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
-        "\n".join(build_compression_summary_lines(label, root_path, parquet_path)) + "\n",
+        "\n".join(build_compression_summary_lines(label, root_and_parquet_paths)) + "\n",
         encoding="utf-8",
     )
     return output_path.resolve()
 
 
+def build_combined_decay_summary(
+    process_banner_texts: list[tuple[int, str]],
+    label: str,
+) -> str:
+    lines = [f"sample: {label}", "", "Processes:"]
+    for process_number, banner_text in process_banner_texts:
+        process_descriptions = extract_process_descriptions_from_banner_text(banner_text)
+        if process_descriptions:
+            for description in process_descriptions:
+                lines.append(f"proc {process_number}: {description}")
+        else:
+            lines.append(f"proc {process_number}: no process description found in the banner")
+
+    lines.extend(
+        [
+            "",
+            "BR(a -> X):",
+            "not applicable for this background sample",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def main() -> int:
     args = parse_args()
-    run_dir = args.run_dir.resolve()
     output_dir = args.output_dir.resolve()
     label = args.label
 
-    if not run_dir.is_dir():
-        raise FileNotFoundError(f"Run directory not found: {run_dir}")
-
     vector.register_awkward()
-    banner_path = discover_latest_banner(run_dir)
-    root_path = discover_latest_delphes_root(run_dir)
-    print(f"Using banner: {banner_path}")
-    print(f"Using Delphes ROOT: {root_path}")
-    banner_text = read_banner_text(banner_path)
 
-    print(f"Streaming ROOT into parquet with step size {args.step_size!r}...")
-    parquet_output_path, cutflow_row = stream_events_to_parquet_and_collect_cutflow(
-        root_path,
-        build_parquet_output_path(output_dir, args.process_number, label),
-        args.process_number,
-        args.step_size,
-    )
+    if args.run_dir is not None:
+        run_dir = args.run_dir.resolve()
+        if not run_dir.is_dir():
+            raise FileNotFoundError(f"Run directory not found: {run_dir}")
+        process_runs = [(args.process_number, run_dir)]
+    else:
+        process_runs = discover_background_process_runs(output_dir)
+
+    cutflow_rows: list[dict[str, int]] = []
+    xsec_rows: list[dict[str, str]] = []
+    process_banner_texts: list[tuple[int, str]] = []
+    root_and_parquet_paths: list[tuple[int, Path, Path]] = []
+
+    for process_number, run_dir in process_runs:
+        banner_path = discover_latest_banner(run_dir)
+        root_path = discover_latest_delphes_root(run_dir)
+        print(f"Using banner for proc {process_number}: {banner_path}")
+        print(f"Using Delphes ROOT for proc {process_number}: {root_path}")
+        banner_text = read_banner_text(banner_path)
+        process_banner_texts.append((process_number, banner_text))
+        xsec_rows.append(build_xsec_row(banner_text, process_number, label))
+
+        print(
+            f"Streaming ROOT for proc {process_number} into parquet with step size "
+            f"{args.step_size!r}..."
+        )
+        parquet_output_path, cutflow_row = stream_events_to_parquet_and_collect_cutflow(
+            root_path,
+            build_parquet_output_path(output_dir, process_number, label),
+            process_number,
+            args.step_size,
+        )
+        cutflow_rows.append(cutflow_row)
+        root_and_parquet_paths.append((process_number, root_path, parquet_output_path))
+        print(f"Wrote {parquet_output_path}")
+
+    cutflow_rows.sort(key=lambda row: row["proc"])
+    xsec_rows.sort(key=lambda row: int(row["process"]))
+    root_and_parquet_paths.sort(key=lambda item: item[0])
+    process_banner_texts.sort(key=lambda item: item[0])
+
     compression_summary_path = write_compression_summary(
         build_compression_summary_path(output_dir),
         label,
-        root_path,
-        parquet_output_path,
+        root_and_parquet_paths,
     )
 
     cuts_output_path = write_cutflow_csv(
         build_cuts_output_path(output_dir, label),
-        [cutflow_row],
+        cutflow_rows,
     )
 
-    xsec_row = build_xsec_row(banner_text, args.process_number, label)
     xsec_output_path = write_xsec_csv(
         build_xsec_output_path(output_dir, label),
-        [xsec_row],
+        xsec_rows,
     )
 
     efficiencies_output_path = write_efficiencies_csv(
         build_efficiencies_output_path(output_dir, label),
-        build_efficiency_rows_from_cutflow(
-            cutflow_row,
-            float(xsec_row["cross section pb"]),
-            int(xsec_row["N events (generated)"]),
-        ),
+        build_efficiency_rows_from_process_rows(cutflow_rows, xsec_rows),
     )
 
-    decay_output_path = write_decay_summary(
-        build_decay_output_path(output_dir, label),
-        banner_text,
-        label,
+    decay_output_path = build_decay_output_path(output_dir, label)
+    decay_output_path.write_text(
+        build_combined_decay_summary(process_banner_texts, label),
+        encoding="utf-8",
     )
+    decay_output_path = decay_output_path.resolve()
 
-    print(f"Wrote {parquet_output_path}")
     print(f"Wrote {compression_summary_path}")
     print(f"Wrote {cuts_output_path}")
     print(f"Wrote {efficiencies_output_path}")
