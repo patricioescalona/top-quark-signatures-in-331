@@ -15,12 +15,16 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_INPUT = BASE_DIR / "significance-summary.txt"
 DEFAULT_OUTPUT = BASE_DIR / "significance-map-comparison.png"
+DEFAULT_EXCLUSION_OUTPUT = BASE_DIR / "exclusion-region.png"
 DEFAULT_LUMINOSITIES_FB = (450.0, 3000.0)
+DEFAULT_EXCLUSION_THRESHOLD = 1.64
 
 
 def parse_args() -> argparse.Namespace:
@@ -52,6 +56,24 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Luminosity columns to plot from significance-summary.txt. "
             "Default: 450 3000"
+        ),
+    )
+    parser.add_argument(
+        "--exclusion-output",
+        type=Path,
+        default=DEFAULT_EXCLUSION_OUTPUT,
+        help=(
+            "Output image path for the exclusion-region plot. "
+            "Default: exclusion/exclusion-region.png"
+        ),
+    )
+    parser.add_argument(
+        "--exclusion-threshold",
+        type=float,
+        default=DEFAULT_EXCLUSION_THRESHOLD,
+        help=(
+            "Significance threshold used to define the excluded region. "
+            "Default: 1.64"
         ),
     )
     return parser.parse_args()
@@ -177,6 +199,103 @@ def make_plot(
     return output_path.resolve()
 
 
+def rows_to_grid(
+    rows: list[tuple[float, float, float]],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    masses = sorted({row[0] for row in rows})
+    tanphis = sorted({row[1] for row in rows})
+    mass_index = {mass: index for index, mass in enumerate(masses)}
+    tanphi_index = {tanphi: index for index, tanphi in enumerate(tanphis)}
+    grid = np.full((len(tanphis), len(masses)), np.nan, dtype=float)
+
+    for mass, tanphi, significance in rows:
+        grid[tanphi_index[tanphi], mass_index[mass]] = significance
+
+    if np.isnan(grid).any():
+        raise ValueError("Input rows do not form a complete mass-tanphi grid.")
+
+    return np.array(masses, dtype=float), np.array(tanphis, dtype=float), grid
+
+
+def make_exclusion_plot(
+    rows_by_luminosity: list[tuple[float, list[tuple[float, float, float]]]],
+    output_path: Path,
+    threshold: float,
+) -> Path:
+    fig, axes = plt.subplots(
+        1,
+        len(rows_by_luminosity),
+        figsize=(7.5 * len(rows_by_luminosity), 5.5),
+        constrained_layout=True,
+        squeeze=False,
+    )
+    axes_row = axes[0]
+
+    legend_handles = [
+        Patch(facecolor="#cfe8cf", edgecolor="none", alpha=0.9, label="Allowed"),
+        Patch(facecolor="#f3b3b3", edgecolor="none", alpha=0.9, label="Excluded"),
+        Line2D([0], [0], color="#8b0000", linewidth=2.0, label=rf"$Z_A = {threshold:g}$"),
+    ]
+
+    for index, (luminosity_fb, rows) in enumerate(rows_by_luminosity):
+        ax = axes_row[index]
+        masses, tanphis, significance_grid = rows_to_grid(rows)
+        log_tanphis = np.log10(tanphis)
+        mass_grid, log_tanphi_grid = np.meshgrid(masses, log_tanphis)
+        significance_min = float(np.min(significance_grid))
+        significance_max = float(np.max(significance_grid))
+        lower_bound = min(significance_min, threshold) - 1e-9
+        upper_bound = max(significance_max, threshold) + 1e-9
+
+        ax.contourf(
+            mass_grid,
+            log_tanphi_grid,
+            significance_grid,
+            levels=[lower_bound, threshold, upper_bound],
+            colors=["#cfe8cf", "#f3b3b3"],
+            alpha=0.9,
+        )
+        contour = ax.contour(
+            mass_grid,
+            log_tanphi_grid,
+            significance_grid,
+            levels=[threshold],
+            colors=["#8b0000"],
+            linewidths=2.0,
+        )
+
+        ax.scatter(
+            mass_grid.ravel(),
+            log_tanphi_grid.ravel(),
+            s=28,
+            c="black",
+            alpha=0.65,
+        )
+        ax.set_xlabel("Mass")
+        if index == 0:
+            ax.set_ylabel("tanphi")
+        ax.set_xticks(masses)
+        ax.set_yticks(log_tanphis)
+        ax.set_yticklabels([f"{value:g}" for value in tanphis])
+        ax.set_title(
+            rf"Exclusion at {luminosity_fb:g} fb$^{{-1}}$ ($Z_A = {threshold:g}$)"
+        )
+        ax.grid(True, which="both", linestyle=":", linewidth=0.6, alpha=0.5)
+
+    fig.legend(
+        legend_handles,
+        [handle.get_label() for handle in legend_handles],
+        loc="upper center",
+        ncol=3,
+        frameon=False,
+    )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=200)
+    plt.close(fig)
+    return output_path.resolve()
+
+
 def main() -> int:
     args = parse_args()
     rows_by_luminosity = [
@@ -184,7 +303,13 @@ def main() -> int:
         for luminosity_fb in args.luminosities
     ]
     output_path = make_plot(rows_by_luminosity, args.output.resolve())
+    exclusion_output_path = make_exclusion_plot(
+        rows_by_luminosity,
+        args.exclusion_output.resolve(),
+        args.exclusion_threshold,
+    )
     print(f"Wrote {output_path}")
+    print(f"Wrote {exclusion_output_path}")
     return 0
 
 
