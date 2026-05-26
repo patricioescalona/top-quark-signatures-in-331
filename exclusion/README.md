@@ -33,7 +33,7 @@ python3 exclusion/generator-and-compressor.py 10000 \
 This writes a MadGraph command file, launches all discovered `proc-*` folders, and saves the compressed parquet outputs under:
 
 ```bash
-exclusion/generated-m-200-tanphi-60/
+exclusion/generated-signal/generated-m-200-tanphi-60/
 ```
 
 If you only want to write the `.mg5` card without launching MadGraph:
@@ -123,7 +123,7 @@ python3 exclusion/cuts.py --mass 200 --tanphi 60
 For one point in parameter space, the results are stored in:
 
 ```bash
-exclusion/generated-m-<mass>-tanphi-<tanphi>/
+exclusion/generated-signal/generated-m-<mass>-tanphi-<tanphi>/
 ```
 
 Typical files are:

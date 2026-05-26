@@ -9,9 +9,14 @@ from pathlib import Path
 import awkward as ak
 import vector
 
+from generated_signal_paths import (
+    build_generated_dir,
+    discover_generated_dirs,
+    format_value_for_filename,
+)
+
 
 PROC_PATTERN = re.compile(r"^proc-(\d+)-m-.*-tanphi-.*\.parquet$")
-GENERATED_DIR_PATTERN = re.compile(r"^generated-m-(.+)-tanphi-(.+)$")
 EXPECTED_PROCESSES = {1, 2, 3, 4, 5, 6}
 
 
@@ -32,20 +37,6 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-
-def format_value_for_filename(value: str) -> str:
-    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip())
-    sanitized = sanitized.strip("-")
-    return sanitized or "value"
-
-
-def build_generated_dir(base_dir: Path, mass: str, tanphi: str) -> Path:
-    return base_dir / (
-        f"generated-m-{format_value_for_filename(mass)}"
-        f"-tanphi-{format_value_for_filename(tanphi)}"
-    )
-
-
 def build_output_csv_path(generated_dir: Path, mass: str, tanphi: str) -> Path:
     return generated_dir / (
         f"cuts-m-{format_value_for_filename(mass)}"
@@ -65,23 +56,6 @@ def build_xsec_csv_path(generated_dir: Path, mass: str, tanphi: str) -> Path:
         f"xsec-m-{format_value_for_filename(mass)}"
         f"-tanphi-{format_value_for_filename(tanphi)}.csv"
     )
-
-
-def discover_generated_dirs(base_dir: Path) -> list[tuple[str, str, Path]]:
-    generated_dirs: list[tuple[str, str, Path]] = []
-    for path in sorted(base_dir.glob("generated-m-*-tanphi-*")):
-        if not path.is_dir():
-            continue
-        match = GENERATED_DIR_PATTERN.fullmatch(path.name)
-        if match is None:
-            continue
-        generated_dirs.append((match.group(1), match.group(2), path))
-
-    if not generated_dirs:
-        raise FileNotFoundError(f"No generated folders found in {base_dir}")
-
-    return generated_dirs
-
 
 def discover_parquets(parquet_dir: Path) -> list[tuple[int, Path]]:
     parquets: list[tuple[int, Path]] = []

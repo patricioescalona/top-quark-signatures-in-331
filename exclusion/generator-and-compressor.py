@@ -14,6 +14,8 @@ import numpy as np
 import uproot
 import vector
 
+from generated_signal_paths import build_generated_dir, format_value_for_filename
+
 
 DEFAULT_MG5_BIN = Path(
     os.environ.get("MG5_BIN_DIR", "/home/patricio/Documents/mg5amcnlo-3.x/bin")
@@ -119,7 +121,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "Destination CSV file for cross section summaries. "
-            "Default: exclusion/generated-m-<mass>-tanphi-<tanphi>/"
+            "Default: exclusion/generated-signal/generated-m-<mass>-tanphi-<tanphi>/"
             "xsec-m-<mass>-tanphi-<tanphi>.csv"
         ),
     )
@@ -155,13 +157,6 @@ def parse_args() -> argparse.Namespace:
         parser.error("--xsec-output must end with .csv.")
 
     return args
-
-
-def format_value_for_filename(value: str) -> str:
-    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip())
-    sanitized = sanitized.strip("-")
-    return sanitized or "value"
-
 
 def build_default_xsec_output(mass: str, tanphi: str) -> Path:
     filename = (
@@ -199,11 +194,7 @@ def build_default_decays_output(mass: str, tanphi: str) -> Path:
 
 
 def build_default_generated_dir(mass: str, tanphi: str) -> Path:
-    dirname = (
-        f"generated-m-{format_value_for_filename(mass)}"
-        f"-tanphi-{format_value_for_filename(tanphi)}"
-    )
-    return Path(__file__).resolve().with_name(dirname)
+    return build_generated_dir(Path(__file__).resolve().parent, mass, tanphi)
 
 
 def build_default_compressed_events_dir(mass: str, tanphi: str) -> Path:

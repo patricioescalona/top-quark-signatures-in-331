@@ -4,13 +4,17 @@ from __future__ import annotations
 import argparse
 import csv
 import math
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from generated_signal_paths import (
+    build_generated_dir,
+    discover_generated_dirs,
+    format_value_for_filename,
+)
+
 
 BASE_DIR = Path(__file__).resolve().parent
-GENERATED_DIR_PATTERN = re.compile(r"^generated-m-(.+)-tanphi-(.+)$")
 DEFAULT_BACKGROUND_DIR = BASE_DIR / "generated-background"
 DEFAULT_LUMINOSITIES_FB = (450.0, 3000.0)
 STAGE_LABELS = [
@@ -87,20 +91,6 @@ def parse_args() -> argparse.Namespace:
 
     return args
 
-
-def format_value_for_filename(value: str) -> str:
-    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip())
-    sanitized = sanitized.strip("-")
-    return sanitized or "value"
-
-
-def build_generated_dir(base_dir: Path, mass: str, tanphi: str) -> Path:
-    return base_dir / (
-        f"generated-m-{format_value_for_filename(mass)}"
-        f"-tanphi-{format_value_for_filename(tanphi)}"
-    )
-
-
 def build_xsec_csv_path(generated_dir: Path, mass: str, tanphi: str) -> Path:
     return generated_dir / (
         f"xsec-m-{format_value_for_filename(mass)}"
@@ -121,23 +111,6 @@ def build_significance_output_path(generated_dir: Path) -> Path:
 
 def build_summary_output_path(base_dir: Path) -> Path:
     return base_dir / "significance-summary.txt"
-
-
-def discover_generated_dirs(base_dir: Path) -> list[tuple[str, str, Path]]:
-    generated_dirs: list[tuple[str, str, Path]] = []
-    for path in sorted(base_dir.glob("generated-m-*-tanphi-*")):
-        if not path.is_dir():
-            continue
-        match = GENERATED_DIR_PATTERN.fullmatch(path.name)
-        if match is None:
-            continue
-        generated_dirs.append((match.group(1), match.group(2), path.resolve()))
-
-    if not generated_dirs:
-        raise FileNotFoundError(f"No generated signal folders found in {base_dir}")
-
-    return generated_dirs
-
 
 def load_total_cross_section_pb(xsec_csv_path: Path) -> float:
     if not xsec_csv_path.is_file():
