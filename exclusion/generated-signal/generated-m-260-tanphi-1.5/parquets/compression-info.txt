@@ -1,0 +1,10 @@
+Point: mass=260, tanphi=1.5
+Wrote 6 compressed event Parquet files.
+ROOT vs Parquet sizes:
+proc-1-m-260-tanphi-1.5: 0.640256 GB -> 0.000887 GB
+proc-2-m-260-tanphi-1.5: 0.638026 GB -> 0.000889 GB
+proc-3-m-260-tanphi-1.5: 0.720355 GB -> 0.001081 GB
+proc-4-m-260-tanphi-1.5: 0.722946 GB -> 0.001086 GB
+proc-5-m-260-tanphi-1.5: 0.720180 GB -> 0.001163 GB
+proc-6-m-260-tanphi-1.5: 0.724302 GB -> 0.001168 GB
+total: 4.166066 GB -> 0.006273 GB

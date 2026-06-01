@@ -1,0 +1,10 @@
+# Priority 4
+# Intermediate tanphi values to shape the valley around tanphi = 1.
+m = 240, 260, 280, 300, 320
+tanphi = 0.5, 0.7, 1.5, 2
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 240 320 --mass-points 5 --tanphi 0.5
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 240 320 --mass-points 5 --tanphi 0.7
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 240 320 --mass-points 5 --tanphi 1.5 
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 240 320 --mass-points 5 --tanphi 2
+
+#ok

@@ -14,7 +14,8 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import TwoSlopeNorm
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
@@ -25,6 +26,25 @@ DEFAULT_OUTPUT = BASE_DIR / "significance-map-comparison.png"
 DEFAULT_EXCLUSION_OUTPUT = BASE_DIR / "exclusion-region.png"
 DEFAULT_LUMINOSITIES_FB = (450.0, 3000.0)
 DEFAULT_EXCLUSION_THRESHOLD = 1.64
+SCATTER_CMAP = LinearSegmentedColormap.from_list(
+    "significance_threshold_map",
+    [
+        (0.0, "#8fa6b3"),
+        (0.42, "#d7e1e8"),
+        (0.5, "#f6f1df"),
+        (0.58, "#f3c98b"),
+        (1.0, "#b33a2f"),
+    ],
+)
+
+
+def select_axis_ticks(values: np.ndarray, max_ticks: int = 5) -> list[float]:
+    unique_values = np.unique(values.astype(float))
+    if unique_values.size <= max_ticks:
+        return unique_values.tolist()
+
+    tick_indices = np.linspace(0, unique_values.size - 1, num=max_ticks, dtype=int)
+    return unique_values[np.unique(tick_indices)].tolist()
 
 
 def parse_args() -> argparse.Namespace:
@@ -133,6 +153,7 @@ def load_summary(
 def make_plot(
     rows_by_luminosity: list[tuple[float, list[tuple[float, float, float]]]],
     output_path: Path,
+    threshold: float,
 ) -> Path:
     all_significances = np.concatenate(
         [
@@ -146,12 +167,23 @@ def make_plot(
 
     shared_vmin = float(np.min(positive_significances))
     shared_vmax = float(np.max(all_significances))
-    norm = LogNorm(vmin=shared_vmin, vmax=shared_vmax)
+    if not (shared_vmin < threshold < shared_vmax):
+        raise ValueError(
+            "The exclusion threshold must lie inside the positive significance range "
+            "to center the scatter color scale."
+        )
+
+    log_significances = np.log10(positive_significances)
+    norm = TwoSlopeNorm(
+        vmin=float(np.min(log_significances)),
+        vcenter=math.log10(threshold),
+        vmax=math.log10(shared_vmax),
+    )
 
     fig, axes = plt.subplots(
         1,
         len(rows_by_luminosity),
-        figsize=(7.5 * len(rows_by_luminosity), 5.5),
+        figsize=(8.4 * len(rows_by_luminosity), 6.2),
         constrained_layout=True,
         squeeze=False,
     )
@@ -166,12 +198,13 @@ def make_plot(
 
         color_values = significances.copy()
         color_values[color_values <= 0.0] = shared_vmin
+        color_values = np.log10(color_values)
 
         scatter = ax.scatter(
             masses,
             tanphis,
             c=color_values,
-            cmap="viridis",
+            cmap=SCATTER_CMAP,
             norm=norm,
             s=140,
             edgecolors="black",
@@ -181,17 +214,58 @@ def make_plot(
         if index == 0:
             ax.set_ylabel("tanphi")
         ax.set_yscale("log")
-        ax.set_xticks(sorted(set(masses)))
-        ax.set_yticks(sorted(set(tanphis)))
-        ax.set_yticklabels([f"{value:g}" for value in sorted(set(tanphis))])
+        x_ticks = select_axis_ticks(masses)
+        y_ticks = select_axis_ticks(tanphis)
+        ax.set_xticks(x_ticks)
+        ax.set_yticks(y_ticks)
+        ax.set_yticklabels([f"{value:g}" for value in y_ticks])
         ax.set_title(rf"$Z_A$ at {luminosity_fb:g} fb$^{{-1}}$")
         ax.grid(True, which="both", linestyle=":", linewidth=0.6, alpha=0.5)
 
     if scatter is None:
         raise ValueError("No luminosity panels were created.")
 
-    colorbar = fig.colorbar(scatter, ax=list(axes_row), pad=0.02)
+    colorbar = fig.colorbar(scatter, ax=list(axes_row), pad=0.035, fraction=0.06)
     colorbar.set_label(r"$Z_A$ after cuts")
+    colorbar.ax.tick_params(labelsize=9, pad=4)
+    colorbar.ax.yaxis.labelpad = 18
+
+    tick_candidates = np.array(
+        [shared_vmin, 0.5, 1.0, threshold, 3.0, 10.0, 100.0, shared_vmax],
+        dtype=float,
+    )
+    tick_values = sorted(
+        {
+            value
+            for value in tick_candidates
+            if shared_vmin <= value <= shared_vmax
+        }
+    )
+    colorbar.set_ticks(np.log10(tick_values))
+    colorbar.set_ticklabels(
+        [
+            f"{value:.2f}" if value < 10.0 else f"{value:.0f}"
+            for value in tick_values
+        ]
+    )
+
+    threshold_position = math.log10(threshold)
+    colorbar.ax.axhline(threshold_position, color="black", linewidth=1.4, linestyle="--")
+    colorbar.ax.text(
+        0.5,
+        threshold_position,
+        "95% CL",
+        transform=colorbar.ax.get_yaxis_transform(),
+        va="center",
+        ha="center",
+        fontsize=9,
+        bbox={
+            "boxstyle": "round,pad=0.18",
+            "facecolor": "white",
+            "edgecolor": "none",
+            "alpha": 0.9,
+        },
+    )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=200)
@@ -274,9 +348,11 @@ def make_exclusion_plot(
         ax.set_xlabel("Mass")
         if index == 0:
             ax.set_ylabel("tanphi")
-        ax.set_xticks(masses)
-        ax.set_yticks(log_tanphis)
-        ax.set_yticklabels([f"{value:g}" for value in tanphis])
+        x_ticks = select_axis_ticks(masses)
+        y_ticks = select_axis_ticks(tanphis)
+        ax.set_xticks(x_ticks)
+        ax.set_yticks(np.log10(y_ticks))
+        ax.set_yticklabels([f"{value:g}" for value in y_ticks])
         ax.set_title(
             rf"Exclusion at {luminosity_fb:g} fb$^{{-1}}$ ($Z_A = {threshold:g}$)"
         )
@@ -302,7 +378,11 @@ def main() -> int:
         (luminosity_fb, load_summary(args.input.resolve(), luminosity_fb))
         for luminosity_fb in args.luminosities
     ]
-    output_path = make_plot(rows_by_luminosity, args.output.resolve())
+    output_path = make_plot(
+        rows_by_luminosity,
+        args.output.resolve(),
+        args.exclusion_threshold,
+    )
     exclusion_output_path = make_exclusion_plot(
         rows_by_luminosity,
         args.exclusion_output.resolve(),

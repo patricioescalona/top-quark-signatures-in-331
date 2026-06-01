@@ -1,0 +1,7 @@
+# Priority 2
+# Continue the tanphi = 1 spine to cover the central exclusion contour.
+m = 230, 240, 250, 260, 270, 280, 290, 300, 310, 320
+tanphi = 1
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 230 320 --mass-points 10 --tanphi 1
+
+#ok
