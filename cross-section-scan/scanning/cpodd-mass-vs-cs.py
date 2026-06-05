@@ -184,9 +184,17 @@ def mtime_ns(path: Path) -> int | None:
 
 def build_card(process: str, pdg: int, mass: str, tanphi: str) -> str:
     return f"""set automatic_html_opening False --no_save
+set notification_center False --no_save
 launch {process}
+shower=OFF
+detector=OFF
+analysis=OFF
 set param_card mass {pdg} {mass}
 set param_card tanphi 1 {tanphi}
+set param_card width {pdg} Auto
+set run_card ebeam1 7000
+set run_card ebeam2 7000
+set nevents 10000
 done
 """
 

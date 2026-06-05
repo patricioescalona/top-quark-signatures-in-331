@@ -5,4 +5,4 @@ tanphi = 0.8, 1.2
 python3 exclusion/generator-and-compressor.py 10000 --mass-range 225 350 --mass-points 6 --tanphi 0.8
 python3 exclusion/generator-and-compressor.py 10000 --mass-range 225 350 --mass-points 6 --tanphi 1.2
 
-#pending
+#ok
