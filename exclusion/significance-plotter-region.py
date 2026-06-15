@@ -14,11 +14,9 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
 import matplotlib.tri as mtri
-from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.colors import TwoSlopeNorm
 from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -26,19 +24,9 @@ DEFAULT_INPUT = BASE_DIR / "significance-summary.txt"
 DEFAULT_OUTPUT = BASE_DIR / "exclusion-region.png"
 DEFAULT_LUMINOSITIES_FB = (450.0, 3000.0)
 DEFAULT_EXCLUSION_THRESHOLD = 1.64
-DEFAULT_CURVE_BAND_FACTOR = 3.0
-DEFAULT_MAX_TRIANGLE_SPAN = 8.0
-DEFAULT_INTERPOLATION_POINTS = 320
-SCATTER_CMAP = LinearSegmentedColormap.from_list(
-    "significance_threshold_map",
-    [
-        (0.0, "#8fa6b3"),
-        (0.42, "#d7e1e8"),
-        (0.5, "#f6f1df"),
-        (0.58, "#f3c98b"),
-        (1.0, "#b33a2f"),
-    ],
-)
+DEFAULT_CURVE_BAND_FACTOR = 2.0
+DEFAULT_MAX_TRIANGLE_SPAN = 20.0
+DEFAULT_INTERPOLATION_POINTS = 1000
 
 
 def select_axis_ticks(values: np.ndarray, max_ticks: int = 5) -> list[float]:
@@ -94,7 +82,7 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_CURVE_BAND_FACTOR,
         help=(
             "Use only points with significance between threshold/factor and "
-            "threshold*factor when building the 95%% CL curve. Default: 3.0"
+            "threshold*factor when building the 95%% CL curve. Default: 2.0"
         ),
     )
     parser.add_argument(
@@ -104,7 +92,7 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Mask triangulation cells whose longest edge is too large after "
             "normalizing by the typical mass and log10(tanphi) spacing. "
-            "Default: 8.0"
+            "Default: 20.0"
         ),
     )
     parser.add_argument(
@@ -113,7 +101,7 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_INTERPOLATION_POINTS,
         help=(
             "Number of points per axis in the interpolated grid used to draw the "
-            "95%% CL contour. Default: 320"
+            "95%% CL contour. Default: 1000"
         ),
     )
     return parser.parse_args()
@@ -215,37 +203,6 @@ def build_filtered_triangulation(
     return triangulation
 
 
-def build_scatter_norm(
-    rows_by_luminosity: list[tuple[float, list[tuple[float, float, float]]]],
-    threshold: float,
-) -> tuple[float, float, TwoSlopeNorm]:
-    all_significances = np.concatenate(
-        [
-            np.array([row[2] for row in rows], dtype=float)
-            for _, rows in rows_by_luminosity
-        ]
-    )
-    positive_significances = all_significances[all_significances > 0.0]
-    if positive_significances.size == 0:
-        raise ValueError("All significances are zero; logarithmic color scale is undefined.")
-
-    shared_vmin = float(np.min(positive_significances))
-    shared_vmax = float(np.max(all_significances))
-    if not (shared_vmin < threshold < shared_vmax):
-        raise ValueError(
-            "The exclusion threshold must lie inside the positive significance range "
-            "to center the scatter color scale."
-        )
-
-    log_significances = np.log10(positive_significances)
-    norm = TwoSlopeNorm(
-        vmin=float(np.min(log_significances)),
-        vcenter=math.log10(threshold),
-        vmax=math.log10(shared_vmax),
-    )
-    return shared_vmin, shared_vmax, norm
-
-
 def select_curve_band_points(
     masses: np.ndarray,
     tanphis: np.ndarray,
@@ -253,12 +210,7 @@ def select_curve_band_points(
     threshold: float,
     curve_band_factor: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    if curve_band_factor <= 1.0:
-        raise ValueError("--curve-band-factor must be greater than 1.")
-
-    lower_bound = threshold / curve_band_factor
-    upper_bound = threshold * curve_band_factor
-    band_mask = (significances >= lower_bound) & (significances <= upper_bound)
+    band_mask = build_curve_band_mask(significances, threshold, curve_band_factor)
     if np.count_nonzero(band_mask) < 4:
         raise ValueError(
             "Not enough points remain in the curve band. "
@@ -266,6 +218,19 @@ def select_curve_band_points(
         )
 
     return masses[band_mask], tanphis[band_mask], significances[band_mask]
+
+
+def build_curve_band_mask(
+    significances: np.ndarray,
+    threshold: float,
+    curve_band_factor: float,
+) -> np.ndarray:
+    if curve_band_factor <= 1.0:
+        raise ValueError("--curve-band-factor must be greater than 1.")
+
+    lower_bound = threshold / curve_band_factor
+    upper_bound = threshold * curve_band_factor
+    return (significances >= lower_bound) & (significances <= upper_bound)
 
 
 def interpolate_log_significance(
@@ -303,10 +268,6 @@ def make_exclusion_plot(
     max_triangle_span: float,
     interpolation_points: int,
 ) -> Path:
-    shared_vmin, shared_vmax, scatter_norm = build_scatter_norm(
-        rows_by_luminosity,
-        threshold,
-    )
     fig, axes = plt.subplots(
         1,
         len(rows_by_luminosity),
@@ -317,21 +278,44 @@ def make_exclusion_plot(
     axes_row = axes[0]
 
     legend_handles = [
-        Patch(facecolor="#cfe8cf", edgecolor="none", alpha=0.9, label="Allowed"),
-        Patch(facecolor="#f3b3b3", edgecolor="none", alpha=0.9, label="Excluded"),
-        Line2D([0], [0], color="#8b0000", linewidth=2.0, label=rf"$Z_A = {threshold:g}$"),
+        Line2D(
+            [0],
+            [0],
+            color="#b10000",
+            linewidth=3.2,
+            label=rf"95% CL exclusion ($Z_A = {threshold:g}$)",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            linestyle="None",
+            markerfacecolor="#f4f1e6",
+            markeredgecolor="#4a4a4a",
+            markersize=7,
+            label="Points used in contour",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            linestyle="None",
+            markerfacecolor="#d9e2e8",
+            markeredgecolor="#8a8a8a",
+            alpha=0.35,
+            markersize=7,
+            label="Points outside band",
+        ),
     ]
 
     for index, (luminosity_fb, rows) in enumerate(rows_by_luminosity):
         ax = axes_row[index]
         masses, tanphis, significances = rows_to_arrays(rows)
-        clipped_significances = significances.copy()
-        clipped_significances[clipped_significances <= 0.0] = shared_vmin
-        log_significances = np.log10(clipped_significances)
+        band_mask = build_curve_band_mask(significances, threshold, curve_band_factor)
         curve_masses, curve_tanphis, curve_significances = select_curve_band_points(
             masses,
             tanphis,
-            clipped_significances,
+            significances,
             threshold,
             curve_band_factor,
         )
@@ -343,38 +327,40 @@ def make_exclusion_plot(
             interpolation_points,
         )
         threshold_level = math.log10(threshold)
-        valid_log_significance = interpolated_log_significance.compressed()
-        if valid_log_significance.size == 0:
-            raise ValueError("Interpolation failed; no valid region remained after masking.")
-        lower_bound = float(np.min(valid_log_significance)) - 1e-9
-        upper_bound = float(np.max(valid_log_significance)) + 1e-9
-
-        ax.contourf(
-            mass_grid,
-            tanphi_grid,
-            interpolated_log_significance,
-            levels=[lower_bound, threshold_level, upper_bound],
-            colors=["#cfe8cf", "#f3b3b3"],
-            alpha=0.28,
-        )
-        ax.contour(
+        contour = ax.contour(
             mass_grid,
             tanphi_grid,
             interpolated_log_significance,
             levels=[threshold_level],
-            colors=["#8b0000"],
-            linewidths=2.4,
+            colors=["#b10000"],
+            linewidths=3.2,
+            zorder=5,
+        )
+        contour.set_path_effects(
+            [
+                pe.Stroke(linewidth=5.8, foreground="white", alpha=0.96),
+                pe.Normal(),
+            ]
         )
 
-        scatter = ax.scatter(
-            masses,
-            tanphis,
-            c=log_significances,
-            cmap=SCATTER_CMAP,
-            norm=scatter_norm,
-            s=115,
-            edgecolors="black",
+        ax.scatter(
+            masses[~band_mask],
+            tanphis[~band_mask],
+            c="#d9e2e8",
+            s=52,
+            edgecolors="#8a8a8a",
             linewidths=0.45,
+            alpha=0.35,
+            zorder=2,
+        )
+        ax.scatter(
+            masses[band_mask],
+            tanphis[band_mask],
+            c="#f4f1e6",
+            s=78,
+            edgecolors="#4a4a4a",
+            linewidths=0.65,
+            alpha=0.95,
             zorder=3,
         )
         ax.set_xlabel("Mass")
@@ -387,51 +373,9 @@ def make_exclusion_plot(
         ax.set_yticks(y_ticks)
         ax.set_yticklabels([f"{value:g}" for value in y_ticks])
         ax.set_title(
-            rf"95% CL curve at {luminosity_fb:g} fb$^{{-1}}$"
+            rf"95% CL exclusion at {luminosity_fb:g} fb$^{{-1}}$"
         )
-        ax.grid(True, which="both", linestyle=":", linewidth=0.6, alpha=0.5)
-
-    colorbar = fig.colorbar(scatter, ax=list(axes_row), pad=0.035, fraction=0.06)
-    colorbar.set_label(r"$Z_A$ after cuts")
-    colorbar.ax.tick_params(labelsize=9, pad=4)
-    colorbar.ax.yaxis.labelpad = 18
-
-    tick_candidates = np.array(
-        [shared_vmin, 0.5, 1.0, threshold, 3.0, 10.0, 100.0, shared_vmax],
-        dtype=float,
-    )
-    tick_values = sorted(
-        {
-            value
-            for value in tick_candidates
-            if shared_vmin <= value <= shared_vmax
-        }
-    )
-    colorbar.set_ticks(np.log10(tick_values))
-    colorbar.set_ticklabels(
-        [
-            f"{value:.2f}" if value < 10.0 else f"{value:.0f}"
-            for value in tick_values
-        ]
-    )
-
-    threshold_position = math.log10(threshold)
-    colorbar.ax.axhline(threshold_position, color="black", linewidth=1.4, linestyle="--")
-    colorbar.ax.text(
-        0.5,
-        threshold_position,
-        "95% CL",
-        transform=colorbar.ax.get_yaxis_transform(),
-        va="center",
-        ha="center",
-        fontsize=9,
-        bbox={
-            "boxstyle": "round,pad=0.18",
-            "facecolor": "white",
-            "edgecolor": "none",
-            "alpha": 0.9,
-        },
-    )
+        ax.grid(True, which="both", linestyle=":", linewidth=0.55, alpha=0.3)
 
     fig.legend(
         legend_handles,

@@ -1,0 +1,12 @@
+# Priority 12
+# Extend the high-tanphi endpoint toward m ~ 350.
+# The current scan jumps from tanphi ~ 10-12 straight to 100, so these intermediate values
+# should tell us where the upper branch actually crosses the 95% CL line.
+m = 346, 347, 348, 349, 350
+tanphi = 14, 16, 20, 30, 50
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 346 350 --mass-points 5 --tanphi 14
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 346 350 --mass-points 5 --tanphi 16
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 346 350 --mass-points 5 --tanphi 20
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 346 350 --mass-points 5 --tanphi 30
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 346 350 --mass-points 5 --tanphi 50
+

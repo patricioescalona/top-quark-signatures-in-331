@@ -1,0 +1,10 @@
+# Priority 11
+# Extend the low-tanphi endpoint toward m ~ 350.
+# These points target the sharp lower branch where the contour currently runs out of support
+# between the huge value at tanphi = 0.01 and the sub-threshold values near tanphi = 0.1.
+m = 346, 347, 348, 349
+tanphi = 0.02, 0.04, 0.06
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 346 349 --mass-points 4 --tanphi 0.02
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 346 349 --mass-points 4 --tanphi 0.04
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 346 349 --mass-points 4 --tanphi 0.06
+
