@@ -3,9 +3,9 @@
 # This is aimed at making the 450 fb^-1 and 3000 fb^-1 contours smoother without relying on long triangles.
 m = 235, 245, 255, 265, 275, 285, 295, 305, 315
 tanphi = 0.6, 0.9, 1.1, 1.8
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 235 315 --mass-points 9 --tanphi 0.6
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 235 315 --mass-points 9 --tanphi 0.9
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 235 315 --mass-points 9 --tanphi 1.1
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 235 315 --mass-points 9 --tanphi 0.6 #ok
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 235 315 --mass-points 9 --tanphi 0.9 #ok
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 235 315 --mass-points 9 --tanphi 1.1 ##running
 python3 exclusion/generator-and-compressor.py 10000 --mass-range 235 315 --mass-points 9 --tanphi 1.8
 
-#pending
+#running

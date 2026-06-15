@@ -6,8 +6,8 @@ tanphi = 0.08, 0.1, 0.12, 8, 10, 12
 python3 exclusion/generator-and-compressor.py 10000 --mass-range 341 344 --mass-points 4 --tanphi 0.08 #Ok
 python3 exclusion/generator-and-compressor.py 10000 --mass-range 341 344 --mass-points 4 --tanphi 0.1 #ok
 python3 exclusion/generator-and-compressor.py 10000 --mass-range 341 344 --mass-points 4 --tanphi 0.12 #ok
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 341 344 --mass-points 4 --tanphi 8 #falta
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 341 344 --mass-points 4 --tanphi 10 # falta
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 341 344 --mass-points 4 --tanphi 12 #falta
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 341 344 --mass-points 4 --tanphi 8 #ok
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 341 344 --mass-points 4 --tanphi 10 
+python3 exclusion/generator-and-compressor.py 10000 --mass-range 341 344 --mass-points 4 --tanphi 12
 
-#running
+#ok
