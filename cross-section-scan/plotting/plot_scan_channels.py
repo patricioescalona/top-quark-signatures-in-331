@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+import math
 import os
+import re
 from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
@@ -16,6 +18,7 @@ import matplotlib.pyplot as plt
 SCAN_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RESULTS = SCAN_ROOT / "results"
 DEFAULT_FIGURES = SCAN_ROOT / "figures"
+TANPHI_PATTERN = re.compile(r"tanphi-(.+)$")
 
 
 def parse_args() -> argparse.Namespace:
@@ -67,6 +70,57 @@ def load_scan(path: Path) -> tuple[list[float], list[float]]:
     return masses, cross_sections
 
 
+def infer_tanphi_token(path: Path) -> str | None:
+    match = TANPHI_PATTERN.search(path.stem)
+    if match is None:
+        return None
+
+    token = match.group(1)
+    if re.fullmatch(r"0\d+", token):
+        token = f"0.{token[1:]}"
+
+    return token
+
+
+def format_tanphi_value(token: str) -> str:
+    try:
+        value = float(token)
+    except ValueError:
+        return token
+
+    if value <= 0:
+        return token
+
+    if math.isclose(value, 1.0, rel_tol=0.0, abs_tol=1e-12):
+        return "1"
+
+    exponent = round(math.log10(value))
+    if math.isclose(value, 10**exponent, rel_tol=1e-12, abs_tol=0.0):
+        return rf"10^{{{exponent}}}"
+
+    return f"{value:g}"
+
+
+def infer_tanphi_label(paths: list[Path]) -> str | None:
+    values = {
+        format_tanphi_value(token)
+        for path in paths
+        if (token := infer_tanphi_token(path)) is not None
+    }
+
+    if not values:
+        return None
+
+    if len(values) != 1:
+        joined_values = ", ".join(sorted(values))
+        raise ValueError(
+            "Could not infer a unique tanphi value from the input CSV names: "
+            f"{joined_values}"
+        )
+
+    return rf"$\tan\phi = {values.pop()}$"
+
+
 def configure_style() -> None:
     plt.rcParams.update(
         {
@@ -85,9 +139,14 @@ def configure_style() -> None:
 def main() -> int:
     args = parse_args()
 
-    aa_mass, aa_xs = load_scan(args.aa.expanduser().resolve())
-    at_mass, at_xs = load_scan(args.at.expanduser().resolve())
-    tt_mass, tt_xs = load_scan(args.tt.expanduser().resolve())
+    aa_path = args.aa.expanduser().resolve()
+    at_path = args.at.expanduser().resolve()
+    tt_path = args.tt.expanduser().resolve()
+
+    aa_mass, aa_xs = load_scan(aa_path)
+    at_mass, at_xs = load_scan(at_path)
+    tt_mass, tt_xs = load_scan(tt_path)
+    tanphi_label = infer_tanphi_label([aa_path, at_path, tt_path])
 
     configure_style()
 
@@ -113,11 +172,11 @@ def main() -> int:
 
     ax.set_yscale("log")
     ax.set_xlim(200, 1400)
-    ax.set_ylim(1e-6, 2e1)
+    ax.set_ylim(1e-10, 1e2)
     ax.set_xticks([200, 500, 800, 1100, 1400])
     ax.set_xlabel(r"$m_a\ [\mathrm{GeV}]$")
     ax.set_ylabel(r"$\sigma\ [\mathrm{pb}]$")
-    ax.legend(loc="upper right", frameon=True)
+    ax.legend(loc="best", frameon=True, title=tanphi_label)
     ax.grid(False)
 
     fig.tight_layout()

@@ -8,3 +8,4 @@ python3 exclusion/generator-and-compressor.py 10000 --mass-range 346 349 --mass-
 python3 exclusion/generator-and-compressor.py 10000 --mass-range 346 349 --mass-points 4 --tanphi 0.04
 python3 exclusion/generator-and-compressor.py 10000 --mass-range 346 349 --mass-points 4 --tanphi 0.06
 
+#ok

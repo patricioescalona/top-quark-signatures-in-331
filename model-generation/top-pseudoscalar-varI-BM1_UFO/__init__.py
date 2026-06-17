@@ -47,4 +47,4 @@ gauge = [0]
 
 __author__ = "Patricio Escalona"
 __date__ = "25. 03. 2026"
-__version__= "1.0"
+__version__= "2.0"

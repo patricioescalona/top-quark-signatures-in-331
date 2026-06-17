@@ -1,6 +1,6 @@
 # This file was automatically created by FeynRules 2.3.49
 # Mathematica version: 13.2.1 for Linux x86 (64-bit) (January 28, 2023)
-# Date: Sat 4 Apr 2026 23:41:33
+# Date: Tue 16 Jun 2026 20:30:48
 
 
 
@@ -586,61 +586,61 @@ vev = Parameter(name = 'vev',
 gAuL1x1 = Parameter(name = 'gAuL1x1',
                     nature = 'internal',
                     type = 'complex',
-                    value = '-((complex(0,1)*MU*(cotphi + tanphi)*VLu1x3*complexconjugate(VLu3x1))/vev)',
+                    value = '(cotphi*complex(0,1)*MU)/vev - (complex(0,1)*MU*(cotphi + tanphi)*VLu3x1*complexconjugate(VLu1x3))/vev',
                     texname = '\\text{gAuL1x1}')
 
 gAuL1x2 = Parameter(name = 'gAuL1x2',
                     nature = 'internal',
                     type = 'complex',
-                    value = '-((complex(0,1)*MU*(cotphi + tanphi)*VLu1x3*complexconjugate(VLu3x2))/vev)',
+                    value = '-((complex(0,1)*MU*(cotphi + tanphi)*VLu3x1*complexconjugate(VLu2x3))/vev)',
                     texname = '\\text{gAuL1x2}')
 
 gAuL1x3 = Parameter(name = 'gAuL1x3',
                     nature = 'internal',
                     type = 'complex',
-                    value = '-((complex(0,1)*MU*(cotphi + tanphi)*VLu1x3*complexconjugate(VLu3x3))/vev)',
+                    value = '-((complex(0,1)*MU*(cotphi + tanphi)*VLu3x1*complexconjugate(VLu3x3))/vev)',
                     texname = '\\text{gAuL1x3}')
 
 gAuL2x1 = Parameter(name = 'gAuL2x1',
                     nature = 'internal',
                     type = 'complex',
-                    value = '-((complex(0,1)*MC*(cotphi + tanphi)*VLu2x3*complexconjugate(VLu3x1))/vev)',
+                    value = '-((complex(0,1)*MC*(cotphi + tanphi)*VLu3x2*complexconjugate(VLu1x3))/vev)',
                     texname = '\\text{gAuL2x1}')
 
 gAuL2x2 = Parameter(name = 'gAuL2x2',
                     nature = 'internal',
                     type = 'complex',
-                    value = '-((complex(0,1)*MC*(cotphi + tanphi)*VLu2x3*complexconjugate(VLu3x2))/vev)',
+                    value = '(cotphi*complex(0,1)*MC)/vev - (complex(0,1)*MC*(cotphi + tanphi)*VLu3x2*complexconjugate(VLu2x3))/vev',
                     texname = '\\text{gAuL2x2}')
 
 gAuL2x3 = Parameter(name = 'gAuL2x3',
                     nature = 'internal',
                     type = 'complex',
-                    value = '-((complex(0,1)*MC*(cotphi + tanphi)*VLu2x3*complexconjugate(VLu3x3))/vev)',
+                    value = '-((complex(0,1)*MC*(cotphi + tanphi)*VLu3x2*complexconjugate(VLu3x3))/vev)',
                     texname = '\\text{gAuL2x3}')
 
 gAuL3x1 = Parameter(name = 'gAuL3x1',
                     nature = 'internal',
                     type = 'complex',
-                    value = '-((complex(0,1)*MT*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu3x1))/vev)',
+                    value = '-((complex(0,1)*MT*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu1x3))/vev)',
                     texname = '\\text{gAuL3x1}')
 
 gAuL3x2 = Parameter(name = 'gAuL3x2',
                     nature = 'internal',
                     type = 'complex',
-                    value = '-((complex(0,1)*MT*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu3x2))/vev)',
+                    value = '-((complex(0,1)*MT*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu2x3))/vev)',
                     texname = '\\text{gAuL3x2}')
 
 gAuL3x3 = Parameter(name = 'gAuL3x3',
                     nature = 'internal',
                     type = 'complex',
-                    value = '-((complex(0,1)*MT*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu3x3))/vev)',
+                    value = '(cotphi*complex(0,1)*MT)/vev - (complex(0,1)*MT*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu3x3))/vev',
                     texname = '\\text{gAuL3x3}')
 
 gAuR1x1 = Parameter(name = 'gAuR1x1',
                     nature = 'internal',
                     type = 'complex',
-                    value = '(complex(0,1)*MU*(cotphi + tanphi)*VLu1x3*complexconjugate(VLu3x1))/vev',
+                    value = '-((cotphi*complex(0,1)*MU)/vev) + (complex(0,1)*MU*(cotphi + tanphi)*VLu1x3*complexconjugate(VLu3x1))/vev',
                     texname = '\\text{gAuR1x1}')
 
 gAuR1x2 = Parameter(name = 'gAuR1x2',
@@ -664,7 +664,7 @@ gAuR2x1 = Parameter(name = 'gAuR2x1',
 gAuR2x2 = Parameter(name = 'gAuR2x2',
                     nature = 'internal',
                     type = 'complex',
-                    value = '(complex(0,1)*MC*(cotphi + tanphi)*VLu2x3*complexconjugate(VLu3x2))/vev',
+                    value = '-((cotphi*complex(0,1)*MC)/vev) + (complex(0,1)*MC*(cotphi + tanphi)*VLu2x3*complexconjugate(VLu3x2))/vev',
                     texname = '\\text{gAuR2x2}')
 
 gAuR2x3 = Parameter(name = 'gAuR2x3',
@@ -688,7 +688,7 @@ gAuR3x2 = Parameter(name = 'gAuR3x2',
 gAuR3x3 = Parameter(name = 'gAuR3x3',
                     nature = 'internal',
                     type = 'complex',
-                    value = '(complex(0,1)*MT*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu3x3))/vev',
+                    value = '-((cotphi*complex(0,1)*MT)/vev) + (complex(0,1)*MT*(cotphi + tanphi)*VLu3x3*complexconjugate(VLu3x3))/vev',
                     texname = '\\text{gAuR3x3}')
 
 lam = Parameter(name = 'lam',
