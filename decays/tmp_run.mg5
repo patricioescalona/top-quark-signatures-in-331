@@ -5,9 +5,9 @@ launch proc-decays
 shower=OFF
 detector=OFF
 analysis=OFF
-set nevents 2
-set mass 36 2000
+set mass 36 1400
 set tanphi 1 100
 set width 36 Auto
+set nevents 2
 set ebeam1 7000
 set ebeam2 7000
