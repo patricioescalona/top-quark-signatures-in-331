@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from generated_signal_paths import (
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_BACKGROUND_DIR = BASE_DIR / "generated-background"
 DEFAULT_LUMINOSITIES_FB = (450.0, 3000.0)
+BACKGROUND_EFFECTIVE_YIELDS_CSV = "effective-cross-section-and-yields.csv"
 STAGE_LABELS = [
     "Before cuts",
     "After cut I",
@@ -24,6 +26,10 @@ STAGE_LABELS = [
     "After cut III",
     "After cut IV",
 ]
+YIELD_COLUMN_PATTERN = re.compile(
+    r"^yield_(?P<luminosity>[0-9]+(?:\.[0-9]+)?)_?fb$",
+    flags=re.IGNORECASE,
+)
 
 
 @dataclass
@@ -31,6 +37,7 @@ class StageSummary:
     label: str
     cross_section_pb: float
     efficiency_percent: float
+    event_yields: dict[float, float] | None = None
 
 
 @dataclass
@@ -66,8 +73,9 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_BACKGROUND_DIR,
         help=(
-            "Background directory containing the full background tables "
-            "(xsec-background.csv and efficiencies-background.csv)."
+            "Background directory containing the background tables. "
+            "It supports the legacy xsec/efficiencies CSV files and the newer "
+            f"{BACKGROUND_EFFECTIVE_YIELDS_CSV} summary."
         ),
     )
     parser.add_argument(
@@ -91,6 +99,7 @@ def parse_args() -> argparse.Namespace:
 
     return args
 
+
 def build_xsec_csv_path(generated_dir: Path, mass: str, tanphi: str) -> Path:
     return generated_dir / (
         f"xsec-m-{format_value_for_filename(mass)}"
@@ -110,7 +119,7 @@ def build_significance_output_path(generated_dir: Path) -> Path:
 
 
 def build_summary_output_path(base_dir: Path) -> Path:
-    return base_dir / "significance-summary.txt"
+    return base_dir / "significance-summary.csv"
 
 def load_total_cross_section_pb(xsec_csv_path: Path) -> float:
     if not xsec_csv_path.is_file():
@@ -161,6 +170,7 @@ def load_efficiency_rows(efficiencies_csv_path: Path) -> list[dict[str, float | 
                     "cut": row["cut"],
                     "efficiency": float(row["efficiency"]),
                     "cross_section_pb": float(row["cross_section_pb"]),
+                    "event_yields": parse_yield_columns(row),
                 }
             )
 
@@ -174,6 +184,21 @@ def load_efficiency_rows(efficiencies_csv_path: Path) -> list[dict[str, float | 
     return rows
 
 
+def parse_yield_columns(row: dict[str, str]) -> dict[float, float]:
+    event_yields: dict[float, float] = {}
+    for column_name, raw_value in row.items():
+        if raw_value in (None, ""):
+            continue
+
+        match = YIELD_COLUMN_PATTERN.fullmatch(column_name.strip())
+        if match is None:
+            continue
+
+        event_yields[float(match.group("luminosity"))] = float(raw_value)
+
+    return event_yields
+
+
 def build_sample_summary(
     label: str,
     generated_dir: Path,
@@ -185,17 +210,23 @@ def build_sample_summary(
             label=STAGE_LABELS[0],
             cross_section_pb=total_cross_section_pb,
             efficiency_percent=100.0,
+            event_yields=None,
         )
     ]
 
     for stage_label, row in zip(STAGE_LABELS[1:], efficiencies_rows):
         cross_section_pb = float(row["cross_section_pb"])
         efficiency = float(row["efficiency"]) * 100.0
+        event_yields = {
+            float(luminosity_fb): float(yield_value)
+            for luminosity_fb, yield_value in dict(row["event_yields"]).items()
+        }
         stages.append(
             StageSummary(
                 label=stage_label,
                 cross_section_pb=cross_section_pb,
                 efficiency_percent=efficiency,
+                event_yields=event_yields or None,
             )
         )
 
@@ -222,14 +253,55 @@ def load_signal_sample(
 def load_background_sample(background_dir: Path) -> SampleSummary:
     xsec_csv_path = background_dir / "xsec-background.csv"
     efficiencies_csv_path = background_dir / "efficiencies-background.csv"
+    effective_yields_csv_path = background_dir / BACKGROUND_EFFECTIVE_YIELDS_CSV
     process_count = load_process_count(xsec_csv_path)
 
-    return build_sample_summary(
+    sample = build_sample_summary(
         label=f"background ({process_count} processes)",
         generated_dir=background_dir,
         total_cross_section_pb=load_total_cross_section_pb(xsec_csv_path),
         efficiencies_rows=load_efficiency_rows(efficiencies_csv_path),
     )
+
+    if effective_yields_csv_path.is_file():
+        total_effective_cross_section_pb, total_event_yields = (
+            load_total_effective_background_data(effective_yields_csv_path)
+        )
+        sample.stages[-1] = StageSummary(
+            label=sample.stages[-1].label,
+            cross_section_pb=total_effective_cross_section_pb,
+            efficiency_percent=sample.stages[-1].efficiency_percent,
+            event_yields=total_event_yields or None,
+        )
+
+    return sample
+
+
+def load_total_effective_background_data(
+    effective_yields_csv_path: Path,
+) -> tuple[float, dict[float, float]]:
+    total_cross_section_pb = 0.0
+    total_event_yields: dict[float, float] = {}
+    process_count = 0
+
+    with effective_yields_csv_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            process_count += 1
+            total_cross_section_pb += float(row["xsec_pb"])
+            for luminosity_fb, yield_value in parse_yield_columns(row).items():
+                total_event_yields[luminosity_fb] = (
+                    total_event_yields.get(luminosity_fb, 0.0) + yield_value
+                )
+
+    if process_count == 0:
+        raise ValueError(f"No background rows found in {effective_yields_csv_path}")
+    if total_cross_section_pb <= 0.0:
+        raise ValueError(
+            f"Total effective background cross section must be positive in {effective_yields_csv_path}"
+        )
+
+    return total_cross_section_pb, total_event_yields
 
 
 def asimov_significance(signal_events: float, background_events: float) -> float:
@@ -262,6 +334,16 @@ def yield_from_cross_section(cross_section_pb: float, luminosity_fb: float) -> f
     return cross_section_pb * luminosity_fb * 1000.0
 
 
+def format_efficiency_value(value: float) -> str:
+    return f"{value:.6e}"
+
+
+def stage_yield(stage: StageSummary, luminosity_fb: float) -> float:
+    if stage.event_yields is not None and luminosity_fb in stage.event_yields:
+        return stage.event_yields[luminosity_fb]
+    return yield_from_cross_section(stage.cross_section_pb, luminosity_fb)
+
+
 def format_table(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> str:
     columns = list(zip(*([headers] + rows)))
     widths = [max(len(str(value)) for value in column) for column in columns]
@@ -282,8 +364,8 @@ def build_significance_text(
     efficiency_rows = [
         (
             signal_stage.label,
-            f"{signal_stage.efficiency_percent:.2f}%",
-            f"{background_stage.efficiency_percent:.2f}%",
+            format_efficiency_value(signal_stage.efficiency_percent / 100.0),
+            format_efficiency_value(background_stage.efficiency_percent / 100.0),
         )
         for signal_stage, background_stage in zip(
             signal_sample.stages[1:], background_sample.stages[1:]
@@ -306,11 +388,8 @@ def build_significance_text(
     for luminosity_fb in luminosities_fb:
         significance_rows = []
         for signal_stage, background_stage in zip(signal_sample.stages, background_sample.stages):
-            signal_yield = yield_from_cross_section(signal_stage.cross_section_pb, luminosity_fb)
-            background_yield = yield_from_cross_section(
-                background_stage.cross_section_pb,
-                luminosity_fb,
-            )
+            signal_yield = stage_yield(signal_stage, luminosity_fb)
+            background_yield = stage_yield(background_stage, luminosity_fb)
             significance_rows.append(
                 (
                     signal_stage.label,
@@ -352,32 +431,26 @@ def write_significance_file(
     return output_path.resolve()
 
 
-def build_summary_text(
+def build_summary_table(
     rows: list[tuple[str, str, SampleSummary, SampleSummary]],
     luminosities_fb: list[float],
-) -> str:
+) -> list[list[str]]:
     headers = ["m", "tanphi"] + [f"Z_A_{luminosity:g}fb" for luminosity in luminosities_fb]
-    lines = [" | ".join(headers)]
+    table_rows = [headers]
     for mass, tanphi, signal_sample, background_sample in rows:
         final_signal_stage = signal_sample.stages[-1]
         final_background_stage = background_sample.stages[-1]
         values = [mass, tanphi]
         for luminosity_fb in luminosities_fb:
-            signal_yield = yield_from_cross_section(
-                final_signal_stage.cross_section_pb,
-                luminosity_fb,
-            )
-            background_yield = yield_from_cross_section(
-                final_background_stage.cross_section_pb,
-                luminosity_fb,
-            )
+            signal_yield = stage_yield(final_signal_stage, luminosity_fb)
+            background_yield = stage_yield(final_background_stage, luminosity_fb)
             values.append(
                 format_significance(
                     asimov_significance(signal_yield, background_yield)
                 )
             )
-        lines.append(" | ".join(values))
-    return "\n".join(lines) + "\n"
+        table_rows.append(values)
+    return table_rows
 
 
 def write_summary_file(
@@ -385,10 +458,10 @@ def write_summary_file(
     rows: list[tuple[str, str, SampleSummary, SampleSummary]],
     luminosities_fb: list[float],
 ) -> Path:
-    output_path.write_text(
-        build_summary_text(rows, luminosities_fb),
-        encoding="utf-8",
-    )
+    table_rows = build_summary_table(rows, luminosities_fb)
+    with output_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerows(table_rows)
     return output_path.resolve()
 
 
@@ -397,31 +470,27 @@ def main() -> int:
     base_dir = args.base_dir.resolve()
     background_dir = args.background_dir.resolve()
     background_sample = load_background_sample(background_dir)
-    summary_rows: list[tuple[str, str, SampleSummary, SampleSummary]] = []
-
     if args.mass is not None and args.tanphi is not None:
-        signal_dir = build_generated_dir(base_dir, args.mass, args.tanphi).resolve()
-        signal_sample = load_signal_sample(args.mass, args.tanphi, signal_dir)
+        targets = [
+            (
+                args.mass,
+                args.tanphi,
+                build_generated_dir(base_dir, args.mass, args.tanphi).resolve(),
+            )
+        ]
+    else:
+        targets = list(discover_generated_dirs(base_dir))
+
+    summary_rows: list[tuple[str, str, SampleSummary, SampleSummary]] = []
+    for mass, tanphi, generated_dir in targets:
+        signal_sample = load_signal_sample(mass, tanphi, generated_dir)
         output_path = write_significance_file(
-            build_significance_output_path(signal_dir),
+            build_significance_output_path(generated_dir),
             signal_sample,
             background_sample,
             args.luminosities,
         )
         print(f"Wrote {output_path}")
-    else:
-        for mass, tanphi, generated_dir in discover_generated_dirs(base_dir):
-            signal_sample = load_signal_sample(mass, tanphi, generated_dir)
-            output_path = write_significance_file(
-                build_significance_output_path(generated_dir),
-                signal_sample,
-                background_sample,
-                args.luminosities,
-            )
-            print(f"Wrote {output_path}")
-
-    for mass, tanphi, generated_dir in discover_generated_dirs(base_dir):
-        signal_sample = load_signal_sample(mass, tanphi, generated_dir)
         summary_rows.append((mass, tanphi, signal_sample, background_sample))
 
     summary_output_path = write_summary_file(

@@ -1,0 +1,7 @@
+proc,total_events,pass_cut_i_bjet,pass_cut_ii_met,pass_cut_iii_same_sign_dilepton,pass_cut_iv_mll
+1,1000,796,742,285,183
+2,1000,806,746,299,209
+3,1000,852,796,278,144
+4,1000,854,801,290,140
+5,1000,869,822,296,201
+6,1000,884,839,293,193
