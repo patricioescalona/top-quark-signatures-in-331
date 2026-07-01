@@ -1,8 +1,0 @@
-# Priority 6
-# Low-amplitude refinement close to tanphi = 1 for a smoother contour.
-m = 225, 250, 275, 300, 325, 350
-tanphi = 0.8, 1.2
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 225 350 --mass-points 6 --tanphi 0.8
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 225 350 --mass-points 6 --tanphi 1.2
-
-#ok

@@ -1,9 +1,0 @@
-# Priority 14
-# Thicken the sparse exit from the central valley before the contour reaches the high-mass edge.
-# These points focus on the region where the 450 fb^-1 contour becomes underconstrained near 305-325 GeV.
-m = 310, 315, 320, 325
-tanphi = 0.4, 0.65, 2.5, 3.5
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 310 325 --mass-points 4 --tanphi 0.4
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 310 325 --mass-points 4 --tanphi 0.65
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 310 325 --mass-points 4 --tanphi 2.5
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 310 325 --mass-points 4 --tanphi 3.5

@@ -151,6 +151,12 @@ def build_compression_summary_path(output_dir: Path) -> Path:
     return build_parquet_dir(output_dir) / "compression-info.txt"
 
 
+def build_label_aware_compression_summary_path(output_dir: Path, label: str) -> Path:
+    if label == DEFAULT_LABEL:
+        return build_compression_summary_path(output_dir)
+    return build_parquet_dir(output_dir) / f"compression-info-{format_value_for_filename(label)}.txt"
+
+
 def discover_background_process_runs(output_dir: Path) -> list[tuple[int, Path]]:
     process_runs: list[tuple[int, Path]] = []
     for proc_dir in sorted(output_dir.glob("proc-bg-*")):
@@ -172,6 +178,27 @@ def discover_background_process_runs(output_dir: Path) -> list[tuple[int, Path]]
         raise FileNotFoundError(f"No proc-bg-* run directories found in {output_dir}")
 
     return process_runs
+
+
+def discover_run_directories(run_path: Path) -> list[Path]:
+    resolved_path = run_path.resolve()
+    nested_run_dirs = sorted(
+        candidate.resolve()
+        for candidate in resolved_path.glob("run_*")
+        if candidate.is_dir()
+    )
+    if nested_run_dirs:
+        return nested_run_dirs
+
+    banner_candidates = list(resolved_path.glob("run_*_tag_*_banner.txt"))
+    root_candidates = list(resolved_path.glob("tag_*_delphes_events.root"))
+    if banner_candidates and root_candidates:
+        return [resolved_path]
+
+    raise FileNotFoundError(
+        "Expected a run directory with banner/ROOT files or a parent directory "
+        f"containing run_* folders, but found neither in {resolved_path}"
+    )
 
 
 def discover_latest_banner(run_dir: Path) -> Path:
@@ -812,6 +839,38 @@ def build_xsec_row(
     }
 
 
+def build_combined_xsec_row(
+    banner_texts: list[str], process_number: int, label: str
+) -> dict[str, str]:
+    if not banner_texts:
+        raise ValueError("At least one banner text is required to build the xsec row.")
+
+    process_descriptions = extract_process_descriptions_from_banner_text(banner_texts[0])
+    mass = extract_mass_from_banner_text(banner_texts[0]) or ""
+    tanphi = extract_tanphi_from_banner_text(banner_texts[0]) or ""
+    total_generated_events = sum(
+        extract_generated_events_from_banner_text(banner_text) for banner_text in banner_texts
+    )
+    average_cross_section_pb = sum(
+        extract_total_cross_section_from_banner_text(banner_text)
+        for banner_text in banner_texts
+    ) / len(banner_texts)
+    average_cross_section_error_pb = sum(
+        extract_total_cross_section_error_from_banner_text(banner_text)
+        for banner_text in banner_texts
+    ) / len(banner_texts)
+
+    return {
+        "process": str(process_number),
+        "mass": mass,
+        "tanphi": tanphi,
+        "cross section pb": f"{average_cross_section_pb:.6e}",
+        "cross section error pb": f"{average_cross_section_error_pb:.6e}",
+        "N events (generated)": str(total_generated_events),
+        "description": " ; ".join(process_descriptions) if process_descriptions else label,
+    }
+
+
 def write_xsec_csv(output_path: Path, rows: list[dict[str, str]]) -> Path:
     with output_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
@@ -842,7 +901,7 @@ def format_file_size(num_bytes: int) -> str:
 
 def build_compression_summary_lines(
     label: str,
-    root_and_parquet_paths: list[tuple[int, Path, Path]],
+    root_and_parquet_paths: list[tuple[int, list[Path], Path]],
 ) -> list[str]:
     total_root_size = 0
     total_parquet_size = 0
@@ -852,13 +911,14 @@ def build_compression_summary_lines(
         "ROOT vs Parquet sizes:",
     ]
 
-    for process_number, root_path, parquet_path in root_and_parquet_paths:
-        root_size = root_path.stat().st_size
+    for process_number, root_paths, parquet_path in root_and_parquet_paths:
+        root_size = sum(root_path.stat().st_size for root_path in root_paths)
         parquet_size = parquet_path.stat().st_size
         total_root_size += root_size
         total_parquet_size += parquet_size
         lines.append(
-            f"proc-{process_number}: {format_file_size(root_size)} -> "
+            f"proc-{process_number} ({len(root_paths)} run(s)): "
+            f"{format_file_size(root_size)} -> "
             f"{format_file_size(parquet_size)}"
         )
 
@@ -872,7 +932,7 @@ def build_compression_summary_lines(
 def write_compression_summary(
     output_path: Path,
     label: str,
-    root_and_parquet_paths: list[tuple[int, Path, Path]],
+    root_and_parquet_paths: list[tuple[int, list[Path], Path]],
 ) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
@@ -905,6 +965,55 @@ def build_combined_decay_summary(
     return "\n".join(lines) + "\n"
 
 
+def stream_roots_to_parquet_and_collect_cutflow(
+    root_paths: list[Path],
+    output_path: Path,
+    process_number: int,
+    step_size: int | str,
+) -> tuple[Path, dict[str, int]]:
+    if not root_paths:
+        raise ValueError("At least one ROOT path is required.")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    writer: pq.ParquetWriter | None = None
+    cutflow_totals = initialize_cutflow_totals()
+    chunk_index = 0
+
+    try:
+        for root_path in root_paths:
+            with uproot.open(root_path) as root_file:
+                tree = select_delphes_tree(root_file, root_path)
+                for arrays in tree.iterate(EVENT_BRANCHES, library="ak", step_size=step_size):
+                    chunk_index += 1
+                    dataset_chunk = build_event_dataset_from_arrays(arrays)
+                    arrow_table = ak.to_arrow_table(dataset_chunk, extensionarray=False)
+                    if writer is None:
+                        writer = pq.ParquetWriter(
+                            output_path,
+                            arrow_table.schema,
+                            compression="zstd",
+                        )
+                    writer.write_table(arrow_table)
+
+                    chunk_counts = summarize_cutflow_counts(dataset_chunk)
+                    for key, value in chunk_counts.items():
+                        cutflow_totals[key] += value
+
+                    print(
+                        f"Processed chunk {chunk_index} from {root_path.name}: "
+                        f"{chunk_counts['total_events']} events "
+                        f"({cutflow_totals['total_events']} total)"
+                    )
+    finally:
+        if writer is not None:
+            writer.close()
+
+    if writer is None:
+        raise ValueError(f"No events were read from process {process_number}.")
+
+    return output_path.resolve(), build_cutflow_row(process_number, cutflow_totals)
+
+
 def main() -> int:
     args = parse_args()
     output_dir = args.output_dir.resolve()
@@ -916,36 +1025,44 @@ def main() -> int:
         run_dir = args.run_dir.resolve()
         if not run_dir.is_dir():
             raise FileNotFoundError(f"Run directory not found: {run_dir}")
-        process_runs = [(args.process_number, run_dir)]
+        process_runs = [(args.process_number, discover_run_directories(run_dir))]
     else:
-        process_runs = discover_background_process_runs(output_dir)
+        process_runs = [
+            (process_number, [process_run_dir])
+            for process_number, process_run_dir in discover_background_process_runs(output_dir)
+        ]
 
     cutflow_rows: list[dict[str, int]] = []
     xsec_rows: list[dict[str, str]] = []
     process_banner_texts: list[tuple[int, str]] = []
-    root_and_parquet_paths: list[tuple[int, Path, Path]] = []
+    root_and_parquet_paths: list[tuple[int, list[Path], Path]] = []
 
-    for process_number, run_dir in process_runs:
-        banner_path = discover_latest_banner(run_dir)
-        root_path = discover_latest_delphes_root(run_dir)
-        print(f"Using banner for proc {process_number}: {banner_path}")
-        print(f"Using Delphes ROOT for proc {process_number}: {root_path}")
-        banner_text = read_banner_text(banner_path)
-        process_banner_texts.append((process_number, banner_text))
-        xsec_rows.append(build_xsec_row(banner_text, process_number, label))
+    for process_number, run_dirs in process_runs:
+        banner_paths = [discover_latest_banner(run_dir) for run_dir in run_dirs]
+        root_paths = [discover_latest_delphes_root(run_dir) for run_dir in run_dirs]
+        for banner_path in banner_paths:
+            print(f"Using banner for proc {process_number}: {banner_path}")
+        for root_path in root_paths:
+            print(f"Using Delphes ROOT for proc {process_number}: {root_path}")
+        banner_texts = [read_banner_text(banner_path) for banner_path in banner_paths]
+        process_banner_texts.append((process_number, banner_texts[0]))
+        if len(banner_texts) == 1:
+            xsec_rows.append(build_xsec_row(banner_texts[0], process_number, label))
+        else:
+            xsec_rows.append(build_combined_xsec_row(banner_texts, process_number, label))
 
         print(
             f"Streaming ROOT for proc {process_number} into parquet with step size "
             f"{args.step_size!r}..."
         )
-        parquet_output_path, cutflow_row = stream_events_to_parquet_and_collect_cutflow(
-            root_path,
+        parquet_output_path, cutflow_row = stream_roots_to_parquet_and_collect_cutflow(
+            root_paths,
             build_parquet_output_path(output_dir, process_number, label),
             process_number,
             args.step_size,
         )
         cutflow_rows.append(cutflow_row)
-        root_and_parquet_paths.append((process_number, root_path, parquet_output_path))
+        root_and_parquet_paths.append((process_number, root_paths, parquet_output_path))
         print(f"Wrote {parquet_output_path}")
 
     cutflow_rows.sort(key=lambda row: row["proc"])
@@ -954,7 +1071,7 @@ def main() -> int:
     process_banner_texts.sort(key=lambda item: item[0])
 
     compression_summary_path = write_compression_summary(
-        build_compression_summary_path(output_dir),
+        build_label_aware_compression_summary_path(output_dir, label),
         label,
         root_and_parquet_paths,
     )

@@ -1,7 +1,0 @@
-# Priority 1
-# Scan tanphi = 1 to resolve the low-mass crossing near 450 fb^-1.
-m = 200, 210, 220
-tanphi = 1
-python3 exclusion/generator-and-compressor.py 10000 --mass-range 200 220 --mass-points 3 --tanphi 1
-
-#ok
