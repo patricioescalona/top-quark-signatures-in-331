@@ -18,6 +18,8 @@ from generated_signal_paths import (
 
 PROC_PATTERN = re.compile(r"^proc-(\d+)-m-.*-tanphi-.*\.parquet$")
 EXPECTED_PROCESSES = {1, 2, 3, 4, 5, 6}
+LUMINOSITY_450_FB = 450.0
+LUMINOSITY_3000_FB = 3000.0
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,6 +38,7 @@ def parse_args() -> argparse.Namespace:
         help="Base exclusion directory. Default: exclusion/",
     )
     return parser.parse_args()
+
 
 def build_output_csv_path(generated_dir: Path, mass: str, tanphi: str) -> Path:
     return generated_dir / (
@@ -56,6 +59,7 @@ def build_xsec_csv_path(generated_dir: Path, mass: str, tanphi: str) -> Path:
         f"xsec-m-{format_value_for_filename(mass)}"
         f"-tanphi-{format_value_for_filename(tanphi)}.csv"
     )
+
 
 def discover_parquets(parquet_dir: Path) -> list[tuple[int, Path]]:
     parquets: list[tuple[int, Path]] = []
@@ -141,19 +145,98 @@ def summarize_cutflow(process_number: int, parquet_path: Path) -> dict[str, int]
     }
 
 
-def write_cutflow_csv(output_path: Path, rows: list[dict[str, int]]) -> None:
-    fieldnames = [
-        "proc",
-        "total_events",
-        "pass_cut_i_bjet",
-        "pass_cut_ii_met",
-        "pass_cut_iii_same_sign_dilepton",
-        "pass_cut_iv_mll",
+def build_transposed_cutflow_rows(
+    cutflow_rows: list[dict[str, int]],
+    process_weights: dict[int, dict[str, float]],
+) -> list[list[str | int | float]]:
+    rows_by_process = {int(row["proc"]): row for row in cutflow_rows}
+    process_numbers = sorted(rows_by_process)
+
+    transposed_rows: list[list[str | int | float]] = [[
+        "process",
+        *[f"proc_{process_number}" for process_number in process_numbers],
+        "total 450/fb",
+        "total 3000/fb",
+    ]]
+
+    fields = [
+        ("total_events", "total_events"),
+        ("pass_cut_i_bjet", "pass_cut_i_bjet"),
+        ("pass_cut_ii_met", "pass_cut_ii_met"),
+        ("pass_cut_iii_same_sign_dilepton", "pass_cut_iii_same_sign_dilepton"),
+        ("pass_cut_iv_mll", "pass_cut_iv_mll"),
     ]
 
+    for label, field_name in fields:
+        raw_values = [
+            rows_by_process[process_number][field_name] for process_number in process_numbers
+        ]
+        total_450_fb = 0.0
+        total_3000_fb = 0.0
+        for process_number in process_numbers:
+            event_weight = process_weights[process_number]["event_weight_pb"]
+            weighted_events_pb = rows_by_process[process_number][field_name] * event_weight
+            total_450_fb += weighted_events_pb * LUMINOSITY_450_FB * 1000.0
+            total_3000_fb += weighted_events_pb * LUMINOSITY_3000_FB * 1000.0
+        transposed_rows.append(
+            [label, *raw_values, f"{total_450_fb:.6f}", f"{total_3000_fb:.6f}"]
+        )
+
+    percentage_fields = [
+        ("pass_cut_i_bjet_frac", "pass_cut_i_bjet"),
+        ("pass_cut_ii_met_frac", "pass_cut_ii_met"),
+        ("pass_cut_iii_same_sign_dilepton_frac", "pass_cut_iii_same_sign_dilepton"),
+        ("pass_cut_iv_mll_frac", "pass_cut_iv_mll"),
+    ]
+
+    for label, field_name in percentage_fields:
+        percentage_values = []
+        total_initial_450_fb = 0.0
+        total_initial_3000_fb = 0.0
+        total_passing_450_fb = 0.0
+        total_passing_3000_fb = 0.0
+
+        for process_number in process_numbers:
+            total_events = rows_by_process[process_number]["total_events"]
+            passing_events = rows_by_process[process_number][field_name]
+            percentage = 0.0 if total_events == 0 else (passing_events / total_events)
+            percentage_values.append(f"{percentage:.6f}")
+
+            event_weight = process_weights[process_number]["event_weight_pb"]
+            total_initial_450_fb += total_events * event_weight * LUMINOSITY_450_FB * 1000.0
+            total_initial_3000_fb += (
+                total_events * event_weight * LUMINOSITY_3000_FB * 1000.0
+            )
+            total_passing_450_fb += (
+                passing_events * event_weight * LUMINOSITY_450_FB * 1000.0
+            )
+            total_passing_3000_fb += (
+                passing_events * event_weight * LUMINOSITY_3000_FB * 1000.0
+            )
+
+        combined_efficiency_450_fb = (
+            0.0 if total_initial_450_fb == 0.0 else total_passing_450_fb / total_initial_450_fb
+        )
+        combined_efficiency_3000_fb = (
+            0.0
+            if total_initial_3000_fb == 0.0
+            else total_passing_3000_fb / total_initial_3000_fb
+        )
+        transposed_rows.append(
+            [
+                label,
+                *percentage_values,
+                f"{combined_efficiency_450_fb:.6f}",
+                f"{combined_efficiency_3000_fb:.6f}",
+            ]
+        )
+
+    return transposed_rows
+
+
+def write_cutflow_csv(output_path: Path, rows: list[list[str | int | float]]) -> None:
     with output_path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
+        writer = csv.writer(handle)
         writer.writerows(rows)
 
 
@@ -195,8 +278,6 @@ def compute_efficiency_rows(
     parquet_entries: list[tuple[int, Path]],
     process_weights: dict[int, dict[str, float]],
 ) -> list[dict[str, str]]:
-    luminosity_450_fb = 450.0
-    luminosity_3000_fb = 3000.0
     weighted_total = 0.0
     weighted_cut_i = 0.0
     weighted_cut_ii = 0.0
@@ -223,8 +304,8 @@ def compute_efficiency_rows(
             "cut": cut_label,
             "efficiency": f"{cross_section_pb / weighted_total:.6f}",
             "cross_section_pb": f"{cross_section_pb:.6f}",
-            "yield_450_fb": f"{cross_section_pb * luminosity_450_fb * 1000.0:.6f}",
-            "yield_3000_fb": f"{cross_section_pb * luminosity_3000_fb * 1000.0:.6f}",
+            "yield_450_fb": f"{cross_section_pb * LUMINOSITY_450_FB * 1000.0:.6f}",
+            "yield_3000_fb": f"{cross_section_pb * LUMINOSITY_3000_FB * 1000.0:.6f}",
         }
 
     return [
@@ -263,10 +344,13 @@ def run_cutflow_for_generated_dir(
         summarize_cutflow(process_number, parquet_path)
         for process_number, parquet_path in parquet_entries
     ]
-    cuts_output_path = build_output_csv_path(generated_dir, mass, tanphi)
-    write_cutflow_csv(cuts_output_path, rows)
-
     process_weights = load_process_weights(generated_dir, mass, tanphi)
+    cuts_output_path = build_output_csv_path(generated_dir, mass, tanphi)
+    write_cutflow_csv(
+        cuts_output_path,
+        build_transposed_cutflow_rows(rows, process_weights),
+    )
+
     efficiencies_rows = compute_efficiency_rows(parquet_entries, process_weights)
     efficiencies_output_path = build_efficiencies_csv_path(generated_dir, mass, tanphi)
     write_efficiencies_csv(efficiencies_output_path, efficiencies_rows)

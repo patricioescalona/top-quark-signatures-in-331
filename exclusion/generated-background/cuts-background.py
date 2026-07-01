@@ -12,6 +12,9 @@ import vector
 SCRIPT_DIR = Path(__file__).resolve().parent
 SOURCE_SCRIPT_PATH = SCRIPT_DIR / "compressor-and-cuts-background.py"
 OUTPUT_PATH = SCRIPT_DIR / "cuts-background.csv"
+XSEC_PATH = SCRIPT_DIR / "xsec-background.csv"
+LUMINOSITY_450_FB = 450.0
+LUMINOSITY_3000_FB = 3000.0
 
 
 def load_background_module():
@@ -49,12 +52,32 @@ def discover_background_parquets(parquet_dir: Path) -> list[tuple[int, Path]]:
     return parquets
 
 
-def build_transposed_rows(cutflow_rows: list[dict[str, int]]) -> list[list[str | int]]:
+def load_xsecs(xsec_path: Path) -> dict[int, dict[str, float]]:
+    with xsec_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        return {
+            int(row["process"]): {
+                "cross_section_pb": float(row["cross section pb"]),
+                "generated_events": float(row["N events (generated)"]),
+            }
+            for row in reader
+        }
+
+
+def build_transposed_rows(
+    cutflow_rows: list[dict[str, int]],
+    xsecs_by_process: dict[int, dict[str, float]],
+) -> list[list[str | int | float]]:
     rows_by_process = {int(row["proc"]): row for row in cutflow_rows}
     process_numbers = sorted(rows_by_process)
 
-    headers = ["process", *[f"proc_{process_number}" for process_number in process_numbers]]
-    transposed_rows: list[list[str | int]] = [headers]
+    headers = [
+        "process",
+        *[f"proc_{process_number}" for process_number in process_numbers],
+        "total 450/fb",
+        "total 3000/fb",
+    ]
+    transposed_rows: list[list[str | int | float]] = [headers]
 
     fields = [
         ("total_events", "total_events"),
@@ -68,7 +91,18 @@ def build_transposed_rows(cutflow_rows: list[dict[str, int]]) -> list[list[str |
         raw_values = [
             rows_by_process[process_number][field_name] for process_number in process_numbers
         ]
-        transposed_rows.append([label, *raw_values])
+        total_450_fb = 0.0
+        total_3000_fb = 0.0
+        for process_number in process_numbers:
+            xsec_info = xsecs_by_process[process_number]
+            event_weight = xsec_info["cross_section_pb"] / xsec_info["generated_events"]
+            weighted_events_pb = rows_by_process[process_number][field_name] * event_weight
+            total_450_fb += weighted_events_pb * LUMINOSITY_450_FB * 1000.0
+            total_3000_fb += weighted_events_pb * LUMINOSITY_3000_FB * 1000.0
+
+        transposed_rows.append(
+            [label, *raw_values, f"{total_450_fb:.6f}", f"{total_3000_fb:.6f}"]
+        )
 
     percentage_fields = [
         ("pass_cut_i_bjet_frac", "pass_cut_i_bjet"),
@@ -79,17 +113,51 @@ def build_transposed_rows(cutflow_rows: list[dict[str, int]]) -> list[list[str |
 
     for label, field_name in percentage_fields:
         percentage_values = []
+        total_initial_450_fb = 0.0
+        total_initial_3000_fb = 0.0
+        total_passing_450_fb = 0.0
+        total_passing_3000_fb = 0.0
+
         for process_number in process_numbers:
             total_events = rows_by_process[process_number]["total_events"]
             value = rows_by_process[process_number][field_name]
             percentage = 0.0 if total_events == 0 else (value / total_events)
             percentage_values.append(f"{percentage:.6f}")
-        transposed_rows.append([label, *percentage_values])
+
+            xsec_info = xsecs_by_process[process_number]
+            event_weight = xsec_info["cross_section_pb"] / xsec_info["generated_events"]
+            initial_events_pb = total_events * event_weight
+            passing_events_pb = value * event_weight
+
+            total_initial_450_fb += initial_events_pb * LUMINOSITY_450_FB * 1000.0
+            total_initial_3000_fb += initial_events_pb * LUMINOSITY_3000_FB * 1000.0
+            total_passing_450_fb += passing_events_pb * LUMINOSITY_450_FB * 1000.0
+            total_passing_3000_fb += passing_events_pb * LUMINOSITY_3000_FB * 1000.0
+
+        combined_efficiency_450_fb = (
+            0.0 if total_initial_450_fb == 0.0 else total_passing_450_fb / total_initial_450_fb
+        )
+        combined_efficiency_3000_fb = (
+            0.0
+            if total_initial_3000_fb == 0.0
+            else total_passing_3000_fb / total_initial_3000_fb
+        )
+        transposed_rows.append(
+            [
+                label,
+                *percentage_values,
+                f"{combined_efficiency_450_fb:.6f}",
+                f"{combined_efficiency_3000_fb:.6f}",
+            ]
+        )
 
     return transposed_rows
 
 
-def write_transposed_csv(output_path: Path, rows: list[list[str | int]]) -> Path:
+def write_transposed_csv(
+    output_path: Path,
+    rows: list[list[str | int | float]],
+) -> Path:
     with output_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerows(rows)
@@ -101,6 +169,7 @@ def main() -> int:
     background_module = load_background_module()
     parquet_dir = SCRIPT_DIR / "parquets"
     parquet_entries = discover_background_parquets(parquet_dir)
+    xsecs_by_process = load_xsecs(XSEC_PATH)
 
     cutflow_rows = []
     for process_number, parquet_path in parquet_entries:
@@ -109,7 +178,10 @@ def main() -> int:
         cutflow_rows.append(background_module.build_cutflow_row(process_number, counts))
 
     cutflow_rows.sort(key=lambda row: row["proc"])
-    output_path = write_transposed_csv(OUTPUT_PATH, build_transposed_rows(cutflow_rows))
+    output_path = write_transposed_csv(
+        OUTPUT_PATH,
+        build_transposed_rows(cutflow_rows, xsecs_by_process),
+    )
     print(f"Wrote {output_path}")
     return 0
 

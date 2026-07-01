@@ -1,10 +1,10 @@
-process                             , proc_1       , proc_2       , proc_3       , proc_4
-total_events                        , 100000       , 100000       , 600000       , 100000
-pass_cut_i_bjet                     ,  80345       ,  65253       , 175349       ,   8756
-pass_cut_ii_met                     ,  75903       ,  61309       ,  49214       ,   8379
-pass_cut_iii_same_sign_dilepton     ,     11       ,      6       ,      8       ,   3108
-pass_cut_iv_mll                     ,      4       ,      2       ,      1       ,   1818
-pass_cut_i_bjet_frac                ,      0.803450,      0.652530,      0.292248,      0.087560
-pass_cut_ii_met_frac                ,      0.759030,      0.613090,      0.082023,      0.083790
-pass_cut_iii_same_sign_dilepton_frac,      0.000110,      0.000060,      0.000013,      0.031080
-pass_cut_iv_mll_frac                ,      0.000040,      0.000020,      0.000002,      0.018180
+process                             , proc_1       , proc_2       , proc_3       , proc_4       , total 450/fb   , total 3000/fb
+total_events                        , 100000       , 100000       , 600000       , 100000       , 39855414.231000, 265702761.540000
+pass_cut_i_bjet                     ,  80345       ,  65253       , 175349       ,   8756       , 18315498.569174, 122103323.794492
+pass_cut_ii_met                     ,  75903       ,  61309       ,  49214       ,   8379       , 12174834.147065,  81165560.980437
+pass_cut_iii_same_sign_dilepton     ,     11       ,      6       ,      8       ,   3108       ,     1999.094679,     13327.297863
+pass_cut_iv_mll                     ,      4       ,      2       ,      1       ,   1818       ,      692.649547,      4617.663647
+pass_cut_i_bjet_frac                ,      0.803450,      0.652530,      0.292248,      0.087560,        0.459549,         0.459549
+pass_cut_ii_met_frac                ,      0.759030,      0.613090,      0.082023,      0.083790,        0.305475,         0.305475
+pass_cut_iii_same_sign_dilepton_frac,      0.000110,      0.000060,      0.000013,      0.031080,        0.000050,         0.000050
+pass_cut_iv_mll_frac                ,      0.000040,      0.000020,      0.000002,      0.018180,        0.000017,         0.000017

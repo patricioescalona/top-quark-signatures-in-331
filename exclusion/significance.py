@@ -18,7 +18,7 @@ from generated_signal_paths import (
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_BACKGROUND_DIR = BASE_DIR / "generated-background"
 DEFAULT_LUMINOSITIES_FB = (450.0, 3000.0)
-BACKGROUND_EFFECTIVE_YIELDS_CSV = "effective-cross-section-and-yields.csv"
+BACKGROUND_EFFECTIVE_YIELDS_CSV = "effective-cross-section-and-yields-background.csv"
 STAGE_LABELS = [
     "Before cuts",
     "After cut I",
