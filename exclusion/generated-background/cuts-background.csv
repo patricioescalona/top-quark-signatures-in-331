@@ -1,5 +1,10 @@
-proc,total_events,pass_cut_i_bjet,pass_cut_ii_met,pass_cut_iii_same_sign_dilepton,pass_cut_iv_mll
-1,100000,80345,75903,11,4
-2,100000,65253,61309,6,2
-3,600000,175349,49214,8,1
-4,100000,8756,8379,3108,1818
+process                             , proc_1       , proc_2       , proc_3       , proc_4
+total_events                        , 100000       , 100000       , 600000       , 100000
+pass_cut_i_bjet                     ,  80345       ,  65253       , 175349       ,   8756
+pass_cut_ii_met                     ,  75903       ,  61309       ,  49214       ,   8379
+pass_cut_iii_same_sign_dilepton     ,     11       ,      6       ,      8       ,   3108
+pass_cut_iv_mll                     ,      4       ,      2       ,      1       ,   1818
+pass_cut_i_bjet_frac                ,      0.803450,      0.652530,      0.292248,      0.087560
+pass_cut_ii_met_frac                ,      0.759030,      0.613090,      0.082023,      0.083790
+pass_cut_iii_same_sign_dilepton_frac,      0.000110,      0.000060,      0.000013,      0.031080
+pass_cut_iv_mll_frac                ,      0.000040,      0.000020,      0.000002,      0.018180
