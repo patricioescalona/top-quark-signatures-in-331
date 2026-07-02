@@ -4,7 +4,7 @@ set notification_center False --no_save
 launch proc-1
 shower=Pythia8
 detector=Delphes
-set nevents 1000
+set nevents 100
 set mass 36 250
 set width 36 Auto
 set tanphi 1 10
@@ -14,7 +14,7 @@ set ebeam2 7000
 launch proc-2
 shower=Pythia8
 detector=Delphes
-set nevents 1000
+set nevents 100
 set mass 36 250
 set width 36 Auto
 set tanphi 1 10
@@ -24,7 +24,7 @@ set ebeam2 7000
 launch proc-3
 shower=Pythia8
 detector=Delphes
-set nevents 1000
+set nevents 100
 set mass 36 250
 set width 36 Auto
 set tanphi 1 10
@@ -34,7 +34,7 @@ set ebeam2 7000
 launch proc-4
 shower=Pythia8
 detector=Delphes
-set nevents 1000
+set nevents 100
 set mass 36 250
 set width 36 Auto
 set tanphi 1 10
@@ -44,7 +44,7 @@ set ebeam2 7000
 launch proc-5
 shower=Pythia8
 detector=Delphes
-set nevents 1000
+set nevents 100
 set mass 36 250
 set width 36 Auto
 set tanphi 1 10
@@ -54,7 +54,7 @@ set ebeam2 7000
 launch proc-6
 shower=Pythia8
 detector=Delphes
-set nevents 1000
+set nevents 100
 set mass 36 250
 set width 36 Auto
 set tanphi 1 10

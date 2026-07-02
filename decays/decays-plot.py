@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 from pathlib import Path
+
+MPLCONFIGDIR = Path(__file__).resolve().parent / ".matplotlib"
+os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIGDIR))
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -16,6 +20,42 @@ from matplotlib.lines import Line2D
 
 DEFAULT_INPUT = Path(__file__).resolve().with_name("decays.csv")
 DEFAULT_OUTPUT = Path(__file__).resolve().with_name("decays.png")
+
+CHARGE_CONJUGATE_LABELS = {
+    "-24": "24",
+    "24": "-24",
+    "d": "d~",
+    "d~": "d",
+    "u": "u~",
+    "u~": "u",
+    "s": "s~",
+    "s~": "s",
+    "c": "c~",
+    "c~": "c",
+    "b": "b~",
+    "b~": "b",
+    "t": "t~",
+    "t~": "t",
+    "e-": "e+",
+    "e+": "e-",
+    "mu-": "mu+",
+    "mu+": "mu-",
+    "tau-": "tau+",
+    "tau+": "tau-",
+    "ve": "ve~",
+    "ve~": "ve",
+    "vm": "vm~",
+    "vm~": "vm",
+    "vt": "vt~",
+    "vt~": "vt",
+    "W+": "W-",
+    "W-": "W+",
+    "Z": "Z",
+    "H": "H",
+    "AP": "AP",
+    "gamma": "gamma",
+    "g": "g",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -37,10 +77,26 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def charge_conjugate_channel(channel: str) -> str:
+    labels = channel.split()
+    conjugated = [CHARGE_CONJUGATE_LABELS.get(label, label) for label in labels]
+    return " ".join(reversed(conjugated))
+
+
+def group_channel_label(channel: str) -> str:
+    conjugate = charge_conjugate_channel(channel)
+    first = min(channel, conjugate)
+    second = max(channel, conjugate)
+    if first == second:
+        return first
+    return f"{first} / {second}"
+
+
 def build_channel_codes(channels: pd.Series) -> tuple[pd.Series, dict[str, int]]:
-    unique_channels = sorted(channels.dropna().unique())
+    grouped_channels = channels.map(group_channel_label)
+    unique_channels = sorted(grouped_channels.dropna().unique())
     mapping = {channel: index for index, channel in enumerate(unique_channels)}
-    return channels.map(mapping), mapping
+    return grouped_channels.map(mapping), mapping
 
 
 def build_categorical_cmap(size: int) -> ListedColormap:
