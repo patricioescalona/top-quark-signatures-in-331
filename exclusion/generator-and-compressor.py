@@ -6,6 +6,7 @@ import csv
 import math     
 import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -769,6 +770,20 @@ def compress_delphes_events(
     return written_paths
 
 
+def remove_event_run_directories(process_dirs: list[Path]) -> list[Path]:
+    removed_paths: list[Path] = []
+    for process_dir in process_dirs:
+        events_dir = process_dir / "Events"
+        if not events_dir.is_dir():
+            continue
+        for run_dir in sorted(events_dir.glob("run_*")):
+            if not run_dir.is_dir():
+                continue
+            shutil.rmtree(run_dir)
+            removed_paths.append(run_dir.resolve())
+    return removed_paths
+
+
 def build_xsec_rows(process_dirs: list[Path]) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     for process_dir in process_dirs:
@@ -888,6 +903,8 @@ def run_single_point(
     print(f"Wrote compression summary to {compression_summary_path}.")
     for line in compression_summary_lines[1:]:
         print(line)
+    removed_run_dirs = remove_event_run_directories(process_dirs)
+    print(f"Removed {len(removed_run_dirs)} run directories from Events.")
     return 0
 
 
