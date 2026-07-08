@@ -6,7 +6,7 @@ shower=OFF
 detector=OFF
 analysis=OFF
 set mass 36 1000
-set tanphi 1 0.2
+set tanphi 1 100
 set width 36 Auto
 set nevents 2
 set ebeam1 7000

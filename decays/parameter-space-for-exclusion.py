@@ -7,6 +7,7 @@ import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 MPLCONFIGDIR = Path(__file__).resolve().parent / ".matplotlib"
 os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIGDIR))
@@ -17,7 +18,7 @@ from matplotlib.lines import Line2D
 
 
 DEFAULT_INPUT = Path(__file__).resolve().with_name("decays.csv")
-DEFAULT_OUTPUT = Path(__file__).resolve().with_name("parameter-space-for-exclusion.txt")
+DEFAULT_OUTPUT = Path(__file__).resolve().with_name("parameter-space-for-exclusion-2t.txt")
 DEFAULT_NEVENTS = 10000
 TOP_PAIR_CHANNEL = "t t~"
 CHARGE_CONJUGATE_LABELS = {
@@ -71,14 +72,23 @@ class ScanRow:
     tanphi_value: float
     width_ratio: float
     primary_channel: str
-    selected: bool
+    selected_2t: bool
+    selected_3t: bool
+
+
+def derive_labeled_path(path: Path, label: str, suffix: str | None = None) -> Path:
+    stem = path.stem
+    if stem.endswith("-2t") or stem.endswith("-3t"):
+        stem = stem[:-3]
+    suffix = path.suffix if suffix is None else suffix
+    return path.with_name(f"{stem}-{label}{suffix}")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build a list of generator commands for exclusion points that pass "
-            "the narrow-width approximation and whose primary decay channel is not t t~."
+            "Build generator-command lists and plots for points split by whether "
+            "the primary decay channel is t t~, with NWA applied only to the non-t t~ selection."
         )
     )
     parser.add_argument(
@@ -91,7 +101,16 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=DEFAULT_OUTPUT,
-        help="Output text file. Default: decays/parameter-space-for-exclusion.txt",
+        help="Output text file for the non-t t~ selection. Default: decays/parameter-space-for-exclusion-2t.txt",
+    )
+    parser.add_argument(
+        "--output-3t",
+        type=Path,
+        default=None,
+        help=(
+            "Output text file for the t t~ selection. "
+            "Default: same path as --output, but with -3t.txt suffix"
+        ),
     )
     parser.add_argument(
         "--nevents",
@@ -105,7 +124,16 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "Output PNG file for the parameter-space plot. "
-            "Default: same path as --output, but with .png extension"
+            "Default: same path as --output, but with -2t.png suffix"
+        ),
+    )
+    parser.add_argument(
+        "--plot-output-3t",
+        type=Path,
+        default=None,
+        help=(
+            "Output PNG file for the t t~ parameter-space plot. "
+            "Default: same path as --plot-output, but with -3t.png suffix"
         ),
     )
     args = parser.parse_args()
@@ -116,10 +144,18 @@ def parse_args() -> argparse.Namespace:
         parser.error("--input must point to a .csv file.")
     if args.output.suffix.lower() != ".txt":
         parser.error("--output must point to a .txt file.")
+    if args.output_3t is None:
+        args.output_3t = derive_labeled_path(args.output, "3t", ".txt")
+    if args.output_3t.suffix.lower() != ".txt":
+        parser.error("--output-3t must point to a .txt file.")
     if args.plot_output is None:
-        args.plot_output = args.output.with_suffix(".png")
+        args.plot_output = derive_labeled_path(args.output, "2t", ".png")
     if args.plot_output.suffix.lower() != ".png":
         parser.error("--plot-output must point to a .png file.")
+    if args.plot_output_3t is None:
+        args.plot_output_3t = derive_labeled_path(args.plot_output, "3t", ".png")
+    if args.plot_output_3t.suffix.lower() != ".png":
+        parser.error("--plot-output-3t must point to a .png file.")
 
     return args
 
@@ -128,10 +164,13 @@ def normalize_label(raw_value: str) -> str:
     return f"{float(raw_value):.12g}"
 
 
-def load_points(rows: list[dict[str, str]]) -> list[Point]:
+def load_points(
+    rows: list[dict[str, str]],
+    row_filter: Callable[[dict[str, str]], bool],
+) -> list[Point]:
     points: list[Point] = []
     for row in rows:
-        if not passes_filters(row):
+        if not row_filter(row):
             continue
         points.append(
             Point(
@@ -162,16 +201,18 @@ def load_rows(input_path: Path) -> list[dict[str, str]]:
         return list(reader)
 
 
-def passes_filters(row: dict[str, str]) -> bool:
-    width_ratio = float(row["total width/mass"])
-    if width_ratio > 0.1:
-        return False
+def passes_nwa(row: dict[str, str]) -> bool:
+    return float(row["total width/mass"]) <= 0.1
 
-    primary_channel = row["primary decay channel"].strip()
-    if primary_channel == TOP_PAIR_CHANNEL:
-        return False
 
-    return True
+def passes_exclusion_filters(row: dict[str, str]) -> bool:
+    if not passes_nwa(row):
+        return False
+    return row["primary decay channel"].strip() != TOP_PAIR_CHANNEL
+
+
+def passes_top_pair_filters(row: dict[str, str]) -> bool:
+    return row["primary decay channel"].strip() == TOP_PAIR_CHANNEL
 
 
 def group_points_by_mass(points: list[Point]) -> dict[str, list[Point]]:
@@ -251,7 +292,8 @@ def build_scan_rows(rows: list[dict[str, str]]) -> list[ScanRow]:
             tanphi_value=float(row["tanphi"]),
             width_ratio=float(row["total width/mass"]),
             primary_channel=row["primary decay channel"].strip(),
-            selected=passes_filters(row),
+            selected_2t=passes_exclusion_filters(row),
+            selected_3t=passes_top_pair_filters(row),
         )
         for row in rows
     ]
@@ -303,20 +345,35 @@ def build_categorical_cmap(size: int) -> ListedColormap:
     return ListedColormap(colors[:size])
 
 
-def plot_parameter_space(scan_rows: list[ScanRow], output_path: Path) -> None:
+def plot_parameter_space(
+    scan_rows: list[ScanRow],
+    output_path: Path,
+    selector: str,
+) -> None:
     if not scan_rows:
         raise ValueError("No rows available to plot.")
 
-    selected_rows = [row for row in scan_rows if row.selected]
+    if selector == "2t":
+        selected_rows = [row for row in scan_rows if row.selected_2t]
+    elif selector == "3t":
+        selected_rows = [row for row in scan_rows if row.selected_3t]
+    else:
+        raise ValueError(f"Unknown selector: {selector}")
+
     if not selected_rows:
-        raise ValueError("No selected rows available to plot.")
+        raise ValueError(f"No selected rows available to plot for {selector}.")
 
     masses = [row.mass_value for row in selected_rows]
     tanphis = [row.tanphi_value for row in selected_rows]
+    all_masses = [row.mass_value for row in scan_rows]
+    all_tanphis = [row.tanphi_value for row in scan_rows]
     channel_codes, channel_mapping = build_channel_codes(selected_rows)
     cmap_channels = build_categorical_cmap(max(len(channel_mapping), 1))
 
     fig, ax = plt.subplots(1, 1, figsize=(7, 5), constrained_layout=True)
+    ax.set_yscale("log")
+    # Match the axis ranges from decays.png by autoscaling on the full scan.
+    ax.scatter(all_masses, all_tanphis, s=0, alpha=0)
     ax.scatter(
         masses,
         tanphis,
@@ -329,7 +386,6 @@ def plot_parameter_space(scan_rows: list[ScanRow], output_path: Path) -> None:
     ax.set_title("Primary Decay Channel")
     ax.set_xlabel("mass")
     ax.set_ylabel("tanphi")
-    ax.set_yscale("log")
 
     legend_items = [
         Line2D(
@@ -360,13 +416,19 @@ def plot_parameter_space(scan_rows: list[ScanRow], output_path: Path) -> None:
 def main() -> None:
     args = parse_args()
     rows = load_rows(args.input)
-    points = load_points(rows)
+    points_2t = load_points(rows, passes_exclusion_filters)
+    points_3t = load_points(rows, passes_top_pair_filters)
     scan_rows = build_scan_rows(rows)
-    lines = build_output_lines(points, args.nevents)
-    write_output(args.output, lines)
-    plot_parameter_space(scan_rows, args.plot_output)
-    print(f"Wrote {len(lines)} command(s) to {args.output}")
+    lines_2t = build_output_lines(points_2t, args.nevents)
+    lines_3t = build_output_lines(points_3t, args.nevents)
+    write_output(args.output, lines_2t)
+    write_output(args.output_3t, lines_3t)
+    plot_parameter_space(scan_rows, args.plot_output, "2t")
+    plot_parameter_space(scan_rows, args.plot_output_3t, "3t")
+    print(f"Wrote {len(lines_2t)} command(s) to {args.output}")
+    print(f"Wrote {len(lines_3t)} command(s) to {args.output_3t}")
     print(f"Wrote plot to {args.plot_output}")
+    print(f"Wrote plot to {args.plot_output_3t}")
 
 
 if __name__ == "__main__":

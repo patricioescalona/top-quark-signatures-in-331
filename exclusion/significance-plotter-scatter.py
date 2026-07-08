@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import math
 import os
 from pathlib import Path
@@ -19,7 +20,7 @@ from matplotlib.colors import TwoSlopeNorm
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_INPUT = BASE_DIR / "significance-summary.txt"
+DEFAULT_INPUT = BASE_DIR / "significance-summary.csv"
 DEFAULT_OUTPUT = BASE_DIR / "significance-map-comparison.png"
 DEFAULT_LUMINOSITIES_FB = (450.0, 3000.0)
 DEFAULT_EXCLUSION_THRESHOLD = 1.64
@@ -54,7 +55,7 @@ def parse_args() -> argparse.Namespace:
         "--input",
         type=Path,
         default=DEFAULT_INPUT,
-        help="Input summary text file. Default: exclusion/significance-summary.txt",
+        help="Input summary CSV file. Default: exclusion/significance-summary.csv",
     )
     parser.add_argument(
         "--output",
@@ -71,7 +72,7 @@ def parse_args() -> argparse.Namespace:
         nargs="+",
         default=list(DEFAULT_LUMINOSITIES_FB),
         help=(
-            "Luminosity columns to plot from significance-summary.txt. "
+            "Luminosity columns to plot from significance-summary.csv. "
             "Default: 450 3000"
         ),
     )
@@ -96,39 +97,19 @@ def load_summary(
 
     rows: list[tuple[float, float, float]] = []
     target_column = f"Z_A_{luminosity_fb:g}fb"
-    column_index: int | None = None
-    with summary_path.open("r", encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, start=1):
-            stripped = line.strip()
-            if not stripped:
-                continue
+    with summary_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        fieldnames = reader.fieldnames or []
+        if target_column not in fieldnames:
+            raise ValueError(
+                f"Column {target_column} not found in {summary_path}. "
+                f"Available columns: {fieldnames}"
+            )
 
-            parts = [part.strip() for part in stripped.split("|")]
-            if line_number == 1:
-                if len(parts) < 3:
-                    raise ValueError(
-                        f"Expected at least 3 columns in the header of {summary_path}."
-                    )
-                try:
-                    column_index = parts.index(target_column)
-                except ValueError as exc:
-                    raise ValueError(
-                        f"Column {target_column} not found in {summary_path}. "
-                        f"Available columns: {parts}"
-                    ) from exc
-                continue
-
-            if column_index is None:
-                raise ValueError(f"Could not parse the header of {summary_path}")
-            if len(parts) <= column_index:
-                raise ValueError(
-                    f"Expected column {target_column} in {summary_path} at line "
-                    f"{line_number}, got: {stripped}"
-                )
-
-            mass = float(parts[0])
-            tanphi = float(parts[1])
-            significance = float(parts[column_index])
+        for row in reader:
+            mass = float(row["m"])
+            tanphi = float(row["tanphi"])
+            significance = float(row[target_column])
             rows.append((mass, tanphi, significance))
 
     if not rows:

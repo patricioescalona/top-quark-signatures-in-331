@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
+from time import perf_counter
 
 import awkward as ak
 import numpy as np
@@ -951,4 +952,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    start_time = perf_counter()
+    try:
+        raise SystemExit(main())
+    finally:
+        elapsed_minutes = (perf_counter() - start_time) / 60
+        print(f"Tiempo total de ejecucion: {elapsed_minutes:.2f} minutos.")
