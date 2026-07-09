@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Scan a mass parameter in an already-generated local MadGraph process "
-            "directory and save the final summary table under cross-section-scan/results/."
+            "directory and save the final summary table under cross-section-scan-2t/results/."
         )
     )
     parser.add_argument(
@@ -64,7 +64,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-name",
         default="top-pseudoscalar-scan",
-        help="Base name for the summary file written in cross-section-scan/results/.",
+        help="Base name for the summary file written in cross-section-scan-2t/results/.",
     )
     parser.add_argument(
         "--output-format",

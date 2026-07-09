@@ -14,6 +14,7 @@ DEFAULT_MG5_BIN = Path(
     os.environ.get("MG5_BIN_DIR", "/home/patricio/Documents/mg5amcnlo-3.x/bin")
 )
 DEFAULT_OUTPUT = Path(__file__).resolve().with_name("tmp_run.mg5")
+NWA_THRESHOLD = 0.1
 
 
 def parse_args() -> argparse.Namespace:
@@ -80,6 +81,15 @@ def parse_args() -> argparse.Namespace:
         help="Optional destination CSV file for the decay scan. Default: decays/decays.csv",
     )
     parser.add_argument(
+        "--narrow-width-output",
+        type=Path,
+        default=None,
+        help=(
+            "Optional destination CSV file for the width/mass = 0.1 boundary curves. "
+            "Default: decays/narrow-width.csv"
+        ),
+    )
+    parser.add_argument(
         "--mass-range",
         type=float,
         nargs=2,
@@ -136,12 +146,20 @@ def parse_args() -> argparse.Namespace:
         args.decays_output = build_default_decays_output()
     if args.decays_output.suffix != ".csv":
         parser.error("--decays-output must end with .csv.")
+    if args.narrow_width_output is None:
+        args.narrow_width_output = build_default_narrow_width_output()
+    if args.narrow_width_output.suffix != ".csv":
+        parser.error("--narrow-width-output must end with .csv.")
 
     return args
 
 
 def build_default_decays_output() -> Path:
     return Path(__file__).resolve().with_name("decays.csv")
+
+
+def build_default_narrow_width_output() -> Path:
+    return Path(__file__).resolve().with_name("narrow-width.csv")
 
 
 def format_scan_value(value: float) -> str:
@@ -459,6 +477,74 @@ def write_decay_summary(
     return output_path.resolve()
 
 
+def extract_narrow_width_rows(
+    rows: list[dict[str, str]],
+    threshold: float = NWA_THRESHOLD,
+) -> list[dict[str, str]]:
+    grouped_points: dict[float, list[tuple[float, float]]] = {}
+    for row in rows:
+        if not row.get("mass") or not row.get("tanphi") or not row.get("total width/mass"):
+            continue
+        mass = float(row["mass"])
+        tanphi = float(row["tanphi"])
+        width_ratio = float(row["total width/mass"])
+        grouped_points.setdefault(mass, []).append((tanphi, width_ratio))
+
+    boundary_rows: list[dict[str, str]] = []
+    for mass in sorted(grouped_points):
+        points = sorted(grouped_points[mass], key=lambda item: item[0])
+        crossings: list[float] = []
+        for index in range(len(points) - 1):
+            tanphi_1, width_ratio_1 = points[index]
+            tanphi_2, width_ratio_2 = points[index + 1]
+            delta_1 = width_ratio_1 - threshold
+            delta_2 = width_ratio_2 - threshold
+
+            if delta_1 == 0.0:
+                crossings.append(tanphi_1)
+            if delta_1 * delta_2 < 0.0:
+                crossing_tanphi = tanphi_1 + (
+                    (threshold - width_ratio_1) * (tanphi_2 - tanphi_1)
+                    / (width_ratio_2 - width_ratio_1)
+                )
+                crossings.append(crossing_tanphi)
+        if points and points[-1][1] == threshold:
+            crossings.append(points[-1][0])
+
+        unique_crossings: list[float] = []
+        for value in crossings:
+            if not unique_crossings or not math.isclose(
+                value, unique_crossings[-1], rel_tol=1e-9, abs_tol=1e-12
+            ):
+                unique_crossings.append(value)
+
+        low_branch = unique_crossings[0] if unique_crossings else None
+        high_branch = unique_crossings[1] if len(unique_crossings) > 1 else None
+        boundary_rows.append(
+            {
+                "mass": format_scan_value(mass),
+                "tanphi_low": "" if low_branch is None else format_scan_value(low_branch),
+                "tanphi_high": "" if high_branch is None else format_scan_value(high_branch),
+            }
+        )
+
+    return boundary_rows
+
+
+def write_narrow_width_summary(
+    output_path: Path,
+    rows: list[dict[str, str]],
+) -> Path:
+    headers = ["mass", "tanphi_low", "tanphi_high"]
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=headers)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+    return output_path.resolve()
+
+
 def main() -> int:
     args = parse_args()
     process_dir = build_process_dir(args.mg5_bin, args.process_name)
@@ -469,6 +555,14 @@ def main() -> int:
     existing_headers, existing_rows = read_existing_rows(args.decays_output)
     all_headers = list(existing_headers)
     all_rows = list(existing_rows)
+
+    if all_rows:
+        narrow_width_rows = extract_narrow_width_rows(all_rows)
+        narrow_width_output = write_narrow_width_summary(
+            args.narrow_width_output,
+            narrow_width_rows,
+        )
+        print(f"Updated narrow-width summary at {narrow_width_output}")
 
     if args.write_only:
         preview_mass = format_scan_value(mass_values[0])
@@ -528,7 +622,13 @@ def main() -> int:
             all_headers = merge_headers(all_headers, headers)
             all_rows.append(row)
             decays_output = write_decay_summary(args.decays_output, all_headers, all_rows)
+            narrow_width_rows = extract_narrow_width_rows(all_rows)
+            narrow_width_output = write_narrow_width_summary(
+                args.narrow_width_output,
+                narrow_width_rows,
+            )
             print(f"Saved row to {decays_output}")
+            print(f"Updated narrow-width summary at {narrow_width_output}")
 
     return 0
 

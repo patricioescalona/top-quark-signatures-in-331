@@ -47,7 +47,7 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=DEFAULT_FIGURES / "varI-BM3-channels.pdf",
-        help="Output figure path. By default this goes to cross-section-scan/figures/.",
+        help="Output figure path. By default this goes to cross-section-scan-2t/figures/.",
     )
     return parser.parse_args()
 

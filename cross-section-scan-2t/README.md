@@ -105,7 +105,7 @@ This creates the local MadGraph process directory used later by the scan script.
 From the repository root:
 
 ```bash
-python3 cross-section-scan/scanning/cpodd-mass-vs-cs.py \
+python3 cross-section-scan-2t/scanning/cpodd-mass-vs-cs.py \
   --mg5-bin ~/Documents/mg5amcnlo-3.x/bin \
   --process varI-BM3-tt \
   --output-name varI-BM3-tt-200-1400 \
@@ -114,14 +114,14 @@ python3 cross-section-scan/scanning/cpodd-mass-vs-cs.py \
   --mass-step 100
 ```
 
-By default, the output table is written under `cross-section-scan/results/`.
+By default, the output table is written under `cross-section-scan-2t/results/`.
 
 ## Making a Plot
 
 From the repository root:
 
 ```bash
-python3 cross-section-scan/plotting/plot_scan_channels.py
+python3 cross-section-scan-2t/plotting/plot_scan_channels.py
 ```
 
-By default, the plot is written under `cross-section-scan/figures/`.
+By default, the plot is written under `cross-section-scan-2t/figures/`.

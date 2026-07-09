@@ -19,16 +19,17 @@ from matplotlib.lines import Line2D
 
 DEFAULT_INPUT = Path(__file__).resolve().with_name("decays.csv")
 DEFAULT_OUTPUT = Path(__file__).resolve().with_name("decays.png")
+DEFAULT_NARROW_WIDTH_INPUT = Path(__file__).resolve().with_name("narrow-width.csv")
 NWA_THRESHOLD = 0.1
 
 WIDTH_RATIO_CMAP = LinearSegmentedColormap.from_list(
     "width_ratio_threshold_map",
     [
-        (0.0, "#0b3c7f"),
-        (0.42, "#d8e3f0"),
-        (0.5, "#f6f1df"),
-        (0.58, "#f3c98b"),
-        (1.0, "#f2cf1d"),
+        (0.0, "#1d4f8c"),
+        (0.42, "#d6e3f3"),
+        (0.5, "#f7f4ea"),
+        (0.58, "#efc98e"),
+        (1.0, "#e0b11f"),
     ],
 )
 
@@ -85,6 +86,12 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_OUTPUT,
         help="Output PNG file. Default: decays/decays.png",
     )
+    parser.add_argument(
+        "--narrow-width-input",
+        type=Path,
+        default=DEFAULT_NARROW_WIDTH_INPUT,
+        help="Input CSV file with narrow-width boundary curves. Default: decays/narrow-width.csv",
+    )
     return parser.parse_args()
 
 
@@ -112,14 +119,14 @@ def build_channel_codes(channels: pd.Series) -> tuple[pd.Series, dict[str, int]]
 
 def build_categorical_cmap(size: int) -> ListedColormap:
     base = [
-        (0.89, 0.10, 0.11),  # red
-        (0.12, 0.47, 0.71),  # blue
-        (0.20, 0.63, 0.17),  # green
-        (1.00, 0.50, 0.00),  # orange
-        (0.60, 0.31, 0.64),  # purple
-        (0.65, 0.34, 0.16),  # brown
-        (0.97, 0.51, 0.75),  # pink
-        (0.50, 0.50, 0.50),  # gray
+        (0.82, 0.23, 0.20),  # muted red
+        (0.18, 0.47, 0.70),  # steel blue
+        (0.20, 0.60, 0.32),  # soft green
+        (0.90, 0.58, 0.16),  # warm orange
+        (0.51, 0.36, 0.70),  # violet
+        (0.55, 0.39, 0.26),  # brown
+        (0.87, 0.49, 0.67),  # pink
+        (0.45, 0.48, 0.52),  # slate gray
     ]
     if size <= len(base):
         return ListedColormap(base[:size])
@@ -135,6 +142,7 @@ def main() -> int:
     data = pd.read_csv(args.input)
     if data.empty:
         raise ValueError(f"No rows found in {args.input}")
+    narrow_width_data = pd.read_csv(args.narrow_width_input)
 
     required_columns = [
         "mass",
@@ -145,28 +153,64 @@ def main() -> int:
     missing = [column for column in required_columns if column not in data.columns]
     if missing:
         raise ValueError(f"Missing required columns in {args.input}: {', '.join(missing)}")
+    narrow_width_required_columns = ["mass", "tanphi_low", "tanphi_high"]
+    narrow_width_missing = [
+        column for column in narrow_width_required_columns if column not in narrow_width_data.columns
+    ]
+    if narrow_width_missing:
+        raise ValueError(
+            "Missing required columns in "
+            f"{args.narrow_width_input}: {', '.join(narrow_width_missing)}"
+        )
 
     data = data.copy()
     data["mass"] = pd.to_numeric(data["mass"])
     data["tanphi"] = pd.to_numeric(data["tanphi"])
     data["total width/mass"] = pd.to_numeric(data["total width/mass"])
+    narrow_width_data = narrow_width_data.copy()
+    narrow_width_data["mass"] = pd.to_numeric(narrow_width_data["mass"])
+    narrow_width_data["tanphi_low"] = pd.to_numeric(
+        narrow_width_data["tanphi_low"], errors="coerce"
+    )
+    narrow_width_data["tanphi_high"] = pd.to_numeric(
+        narrow_width_data["tanphi_high"], errors="coerce"
+    )
+    narrow_width_low = narrow_width_data.dropna(subset=["tanphi_low"]).sort_values("mass")
+    narrow_width_high = narrow_width_data.dropna(subset=["tanphi_high"]).sort_values("mass")
     channel_codes, channel_mapping = build_channel_codes(data["primary decay channel"])
     cmap_channels = build_categorical_cmap(max(len(channel_mapping), 1))
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5), constrained_layout=True)
+    plt.rcParams.update(
+        {
+            "font.size": 11,
+            "axes.titlesize": 16,
+            "axes.titleweight": "semibold",
+            "axes.labelsize": 12,
+            "axes.facecolor": "#fbfbf8",
+            "figure.facecolor": "white",
+            "axes.edgecolor": "#555555",
+            "axes.linewidth": 0.9,
+            "xtick.color": "#2f2f2f",
+            "ytick.color": "#2f2f2f",
+        }
+    )
 
-    scatter_channels = axes[0].scatter(
+    fig, axes = plt.subplots(1, 2, figsize=(14.4, 5.6), constrained_layout=True)
+    fig.set_constrained_layout_pads(w_pad=0.05, h_pad=0.05, hspace=0.02, wspace=0.04)
+
+    axes[0].scatter(
         data["mass"],
         data["tanphi"],
         c=channel_codes,
         cmap=cmap_channels,
-        s=80,
-        edgecolors="black",
-        linewidths=0.3,
+        s=92,
+        edgecolors="#242424",
+        linewidths=0.45,
+        alpha=0.96,
     )
-    axes[0].set_title("Main Decay Channel")
-    axes[0].set_xlabel("mass")
-    axes[0].set_ylabel("tanphi")
+    axes[0].set_title("Main Decay Channel", pad=10)
+    axes[0].set_xlabel("Mass")
+    axes[0].set_ylabel(r"$\tan\phi$")
     axes[0].set_yscale("log")
 
     legend_items = [
@@ -177,8 +221,8 @@ def main() -> int:
             color="w",
             label=channel,
             markerfacecolor=cmap_channels(index),
-            markeredgecolor="black",
-            markersize=8,
+            markeredgecolor="#242424",
+            markersize=10,
         )
         for channel, index in channel_mapping.items()
     ]
@@ -189,6 +233,31 @@ def main() -> int:
             loc="upper left",
             bbox_to_anchor=(1.02, 1.0),
             borderaxespad=0.0,
+            frameon=True,
+            fancybox=True,
+            framealpha=0.95,
+            facecolor="white",
+            edgecolor="#d0d0d0",
+        )
+    if not narrow_width_low.empty:
+        axes[0].plot(
+            narrow_width_low["mass"],
+            narrow_width_low["tanphi_low"],
+            color="#111111",
+            linewidth=2.0,
+            linestyle="--",
+            alpha=0.95,
+            zorder=4,
+        )
+    if not narrow_width_high.empty:
+        axes[0].plot(
+            narrow_width_high["mass"],
+            narrow_width_high["tanphi_high"],
+            color="#111111",
+            linewidth=2.0,
+            linestyle="-.",
+            alpha=0.95,
+            zorder=4,
         )
 
     positive_width_ratio = data["total width/mass"][data["total width/mass"] > 0]
@@ -211,19 +280,50 @@ def main() -> int:
         c=log_width_ratio,
         cmap=WIDTH_RATIO_CMAP,
         norm=width_ratio_norm,
-        s=120,
+        s=92,
         marker="o",
-        edgecolors="black",
-        linewidths=0.3,
+        edgecolors="#242424",
+        linewidths=0.45,
+        alpha=0.96,
     )
-    axes[1].set_title("Width / Mass")
-    axes[1].set_xlabel("mass")
-    axes[1].set_ylabel("tanphi")
+    axes[1].set_title("Width / Mass", pad=10)
+    axes[1].set_xlabel("Mass")
+    axes[1].set_ylabel(r"$\tan\phi$")
     axes[1].set_yscale("log")
+    if not narrow_width_low.empty:
+        axes[1].plot(
+            narrow_width_low["mass"],
+            narrow_width_low["tanphi_low"],
+            color="#111111",
+            linewidth=2.0,
+            linestyle="--",
+            alpha=0.95,
+            zorder=4,
+        )
+    if not narrow_width_high.empty:
+        axes[1].plot(
+            narrow_width_high["mass"],
+            narrow_width_high["tanphi_high"],
+            color="#111111",
+            linewidth=2.0,
+            linestyle="-.",
+            alpha=0.95,
+            zorder=4,
+        )
+
+    for ax in axes:
+        ax.grid(True, which="major", color="#d9d9d9", linestyle=":", linewidth=0.8, alpha=0.75)
+        ax.grid(True, which="minor", color="#ebebeb", linestyle=":", linewidth=0.5, alpha=0.55)
+        ax.set_axisbelow(True)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
     colorbar = fig.colorbar(
         scatter_width_ratio,
         ax=axes[1],
         label="width / mass",
+        pad=0.03,
+        fraction=0.06,
     )
     colorbar_ticks = [
         value
@@ -237,7 +337,7 @@ def main() -> int:
     colorbar.ax.text(
         0.5,
         threshold_position,
-        "NWA",
+        "NWA = 0.1",
         transform=colorbar.ax.get_yaxis_transform(),
         va="center",
         ha="center",
@@ -245,8 +345,8 @@ def main() -> int:
         bbox={
             "boxstyle": "round,pad=0.18",
             "facecolor": "white",
-            "edgecolor": "none",
-            "alpha": 0.9,
+            "edgecolor": "#cfcfcf",
+            "alpha": 0.96,
         },
     )
 

@@ -19,6 +19,7 @@ from matplotlib.patches import Patch
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_SEARCH_RESULTS_DIRECTORY = SCRIPT_DIR / "asimov-significance-search-results"
 DEFAULT_DECAYS_SCAN_CSV_PATH = SCRIPT_DIR.parent / "decays" / "decays.csv"
+DEFAULT_NARROW_WIDTH_CSV_PATH = SCRIPT_DIR.parent / "decays" / "narrow-width.csv"
 DEFAULT_OUTPUT_PLOT_PATH = (
     DEFAULT_SEARCH_RESULTS_DIRECTORY
     / "explored-points-and-best-points-from-asimov-significance-search-results.png"
@@ -78,6 +79,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_DECAYS_SCAN_CSV_PATH,
         help="CSV file used to match the axis limits from decays/. Default: decays/decays.csv",
+    )
+    parser.add_argument(
+        "--narrow-width-csv-path",
+        type=Path,
+        default=DEFAULT_NARROW_WIDTH_CSV_PATH,
+        help="CSV file with tanphi_low/tanphi_high NWA curves. Default: decays/narrow-width.csv",
     )
     parser.add_argument(
         "--output-plot-path",
@@ -251,6 +258,32 @@ def load_ttbar_dominance_boundary(
     return boundary_masses, boundary_tanphis
 
 
+def load_narrow_width_boundaries(
+    narrow_width_csv_path: Path,
+) -> tuple[list[float], list[float], list[float], list[float]]:
+    with narrow_width_csv_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        low_points: list[tuple[float, float]] = []
+        high_points: list[tuple[float, float]] = []
+        for row in reader:
+            mass_value = float(row["mass"])
+            tanphi_low = row["tanphi_low"].strip()
+            tanphi_high = row["tanphi_high"].strip()
+            if tanphi_low:
+                low_points.append((mass_value, float(tanphi_low)))
+            if tanphi_high:
+                high_points.append((mass_value, float(tanphi_high)))
+
+    low_points.sort()
+    high_points.sort()
+    return (
+        [mass_value for mass_value, _ in low_points],
+        [tanphi_value for _, tanphi_value in low_points],
+        [mass_value for mass_value, _ in high_points],
+        [tanphi_value for _, tanphi_value in high_points],
+    )
+
+
 def configuration_matches_filters(
     configuration: SearchConfiguration,
     args: argparse.Namespace,
@@ -343,6 +376,10 @@ def plot_explored_and_best_points(
     decays_scan_tanphis: list[float],
     ttbar_dominance_boundary_masses: list[float],
     ttbar_dominance_boundary_tanphis: list[float],
+    narrow_width_low_masses: list[float],
+    narrow_width_low_tanphis: list[float],
+    narrow_width_high_masses: list[float],
+    narrow_width_high_tanphis: list[float],
     histories_by_summary: list[tuple[SearchSummary, list[HistoryPoint]]],
     output_plot_path: Path,
 ) -> Path:
@@ -487,6 +524,26 @@ def plot_explored_and_best_points(
             alpha=exclusion_region_alpha,
             zorder=2,
         )
+    if narrow_width_low_masses:
+        ax.plot(
+            narrow_width_low_masses,
+            narrow_width_low_tanphis,
+            color="#111111",
+            linewidth=2.0,
+            linestyle="--",
+            alpha=0.95,
+            zorder=3.5,
+        )
+    if narrow_width_high_masses:
+        ax.plot(
+            narrow_width_high_masses,
+            narrow_width_high_tanphis,
+            color="#111111",
+            linewidth=2.0,
+            linestyle="-.",
+            alpha=0.95,
+            zorder=3.5,
+        )
     ax.axvline(
         PSEUDOSCALAR_TO_TOP_CHARM_THRESHOLD_IN_GEV,
         color="#7f8c8d",
@@ -582,6 +639,12 @@ def main() -> int:
     ttbar_dominance_boundary_masses, ttbar_dominance_boundary_tanphis = (
         load_ttbar_dominance_boundary(decays_scan_csv_path)
     )
+    (
+        narrow_width_low_masses,
+        narrow_width_low_tanphis,
+        narrow_width_high_masses,
+        narrow_width_high_tanphis,
+    ) = load_narrow_width_boundaries(args.narrow_width_csv_path.resolve())
     histories_by_summary = [
         (summary, load_history_points(summary.evaluation_history_csv_path))
         for summary in summaries
@@ -591,6 +654,10 @@ def main() -> int:
         decays_scan_tanphis,
         ttbar_dominance_boundary_masses,
         ttbar_dominance_boundary_tanphis,
+        narrow_width_low_masses,
+        narrow_width_low_tanphis,
+        narrow_width_high_masses,
+        narrow_width_high_tanphis,
         histories_by_summary,
         output_plot_path,
     )
