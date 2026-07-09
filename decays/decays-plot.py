@@ -11,15 +11,26 @@ os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIGDIR))
 
 import matplotlib.pyplot as plt
 import pandas as pd
-from matplotlib import cm
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.colors import ListedColormap
-from matplotlib.colors import LogNorm
-from matplotlib.ticker import LogFormatterMathtext
+from matplotlib.colors import TwoSlopeNorm
 from matplotlib.lines import Line2D
 
 
 DEFAULT_INPUT = Path(__file__).resolve().with_name("decays.csv")
 DEFAULT_OUTPUT = Path(__file__).resolve().with_name("decays.png")
+NWA_THRESHOLD = 0.1
+
+WIDTH_RATIO_CMAP = LinearSegmentedColormap.from_list(
+    "width_ratio_threshold_map",
+    [
+        (0.0, "#0b3c7f"),
+        (0.42, "#d8e3f0"),
+        (0.5, "#f6f1df"),
+        (0.58, "#f3c98b"),
+        (1.0, "#f2cf1d"),
+    ],
+)
 
 CHARGE_CONJUGATE_LABELS = {
     "-24": "24",
@@ -183,36 +194,25 @@ def main() -> int:
     positive_width_ratio = data["total width/mass"][data["total width/mass"] > 0]
     if positive_width_ratio.empty:
         raise ValueError("All width/mass values are non-positive; cannot use log color scale.")
-    tick_min_exp = math.floor(math.log10(positive_width_ratio.min()))
-    tick_max_exp = math.ceil(math.log10(positive_width_ratio.max()))
-    colorbar_ticks = [10**exponent for exponent in range(tick_min_exp, tick_max_exp + 1)]
-    width_ratio_cmap = "cividis"
-    width_ratio_norm = LogNorm(
-        vmin=10**tick_min_exp,
-        vmax=10**tick_max_exp,
-    )
-    low_width_mask = data["total width/mass"] < 0.1
-    high_width_mask = ~low_width_mask
+    width_ratio_min = float(positive_width_ratio.min())
+    width_ratio_max = float(positive_width_ratio.max())
+    if not (width_ratio_min < NWA_THRESHOLD < width_ratio_max):
+        raise ValueError("The NWA threshold must lie inside the positive width/mass range.")
 
-    axes[1].scatter(
-        data.loc[high_width_mask, "mass"],
-        data.loc[high_width_mask, "tanphi"],
-        c=data.loc[high_width_mask, "total width/mass"],
-        cmap=width_ratio_cmap,
-        norm=width_ratio_norm,
-        s=80,
-        marker="o",
-        edgecolors="black",
-        linewidths=0.3,
+    log_width_ratio = data["total width/mass"].clip(lower=width_ratio_min).map(math.log10)
+    width_ratio_norm = TwoSlopeNorm(
+        vmin=math.log10(width_ratio_min),
+        vcenter=math.log10(NWA_THRESHOLD),
+        vmax=math.log10(width_ratio_max),
     )
-    axes[1].scatter(
-        data.loc[low_width_mask, "mass"],
-        data.loc[low_width_mask, "tanphi"],
-        c=data.loc[low_width_mask, "total width/mass"],
-        cmap=width_ratio_cmap,
+    scatter_width_ratio = axes[1].scatter(
+        data["mass"],
+        data["tanphi"],
+        c=log_width_ratio,
+        cmap=WIDTH_RATIO_CMAP,
         norm=width_ratio_norm,
         s=120,
-        marker="*",
+        marker="o",
         edgecolors="black",
         linewidths=0.3,
     )
@@ -221,13 +221,34 @@ def main() -> int:
     axes[1].set_ylabel("tanphi")
     axes[1].set_yscale("log")
     colorbar = fig.colorbar(
-        cm.ScalarMappable(norm=width_ratio_norm, cmap=width_ratio_cmap),
+        scatter_width_ratio,
         ax=axes[1],
         label="width / mass",
-        ticks=colorbar_ticks,
     )
-    colorbar.formatter = LogFormatterMathtext(base=10.0)
-    colorbar.update_ticks()
+    colorbar_ticks = [
+        value
+        for value in [width_ratio_min, 1e-4, 1e-3, 1e-2, NWA_THRESHOLD, 1.0, 10.0, 100.0, width_ratio_max]
+        if width_ratio_min <= value <= width_ratio_max
+    ]
+    colorbar.set_ticks([math.log10(value) for value in colorbar_ticks])
+    colorbar.set_ticklabels([f"{value:g}" for value in colorbar_ticks])
+    threshold_position = math.log10(NWA_THRESHOLD)
+    colorbar.ax.axhline(threshold_position, color="black", linewidth=1.4, linestyle="--")
+    colorbar.ax.text(
+        0.5,
+        threshold_position,
+        "NWA",
+        transform=colorbar.ax.get_yaxis_transform(),
+        va="center",
+        ha="center",
+        fontsize=9,
+        bbox={
+            "boxstyle": "round,pad=0.18",
+            "facecolor": "white",
+            "edgecolor": "none",
+            "alpha": 0.9,
+        },
+    )
 
     fig.savefig(args.output, dpi=200)
     plt.close(fig)
