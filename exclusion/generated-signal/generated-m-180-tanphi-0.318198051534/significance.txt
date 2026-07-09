@@ -1,0 +1,29 @@
+Luminosities: 450 fb^-1, 3000 fb^-1
+Signal sample: m=180, tanphi=0.318198051534
+Background sample: background (4 processes)
+
+Cut efficiencies (cumulative)
+cut           | signal       | background  
+--------------+--------------+-------------
+After cut I   | 8.206560e-01 | 4.595490e-01
+After cut II  | 7.825930e-01 | 3.054750e-01
+After cut III | 2.774380e-01 | 5.000000e-05
+After cut IV  | 1.167300e-01 | 1.700000e-05
+
+Asimov significance (450 fb^-1)
+stage         | signal yield [events] | background yield [events] | Z_A     
+--------------+-----------------------+---------------------------+---------
+Before cuts   | 333.763176            | 39855414.231000           | 0.052868
+After cut I   | 273.904663            | 18315498.569174           | 0.064001
+After cut II  | 261.200858            | 12174834.147065           | 0.074859
+After cut III | 92.598646             | 1999.094679               | 2.055350
+After cut IV  | 38.960235             | 1385.299095               | 1.041917
+
+Asimov significance (3000 fb^-1)
+stage         | signal yield [events] | background yield [events] | Z_A     
+--------------+-----------------------+---------------------------+---------
+Before cuts   | 2225.087842           | 265702761.540000          | 0.136505
+After cut I   | 1826.031084           | 122103323.794492          | 0.165251
+After cut II  | 1741.339053           | 81165560.980437           | 0.193284
+After cut III | 617.324308            | 13327.297863              | 5.306891
+After cut IV  | 259.734903            | 9235.327294               | 2.690217

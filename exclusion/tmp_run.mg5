@@ -5,10 +5,10 @@ launch proc-1
 shower=Pythia8
 detector=Delphes
 analysis=OFF
-set mass 36 320
-set tanphi 1 4.96743124829
+set mass 36 980
+set tanphi 1 0.0536257837191
 set width 36 Auto
-set nevents 10000
+set nevents 1000
 set ebeam1 7000
 set ebeam2 7000
 
@@ -16,10 +16,10 @@ launch proc-2
 shower=Pythia8
 detector=Delphes
 analysis=OFF
-set mass 36 320
-set tanphi 1 4.96743124829
+set mass 36 980
+set tanphi 1 0.0536257837191
 set width 36 Auto
-set nevents 10000
+set nevents 1000
 set ebeam1 7000
 set ebeam2 7000
 
@@ -27,10 +27,10 @@ launch proc-3
 shower=Pythia8
 detector=Delphes
 analysis=OFF
-set mass 36 320
-set tanphi 1 4.96743124829
+set mass 36 980
+set tanphi 1 0.0536257837191
 set width 36 Auto
-set nevents 10000
+set nevents 1000
 set ebeam1 7000
 set ebeam2 7000
 
@@ -38,10 +38,10 @@ launch proc-4
 shower=Pythia8
 detector=Delphes
 analysis=OFF
-set mass 36 320
-set tanphi 1 4.96743124829
+set mass 36 980
+set tanphi 1 0.0536257837191
 set width 36 Auto
-set nevents 10000
+set nevents 1000
 set ebeam1 7000
 set ebeam2 7000
 
@@ -49,10 +49,10 @@ launch proc-5
 shower=Pythia8
 detector=Delphes
 analysis=OFF
-set mass 36 320
-set tanphi 1 4.96743124829
+set mass 36 980
+set tanphi 1 0.0536257837191
 set width 36 Auto
-set nevents 10000
+set nevents 1000
 set ebeam1 7000
 set ebeam2 7000
 
@@ -60,9 +60,9 @@ launch proc-6
 shower=Pythia8
 detector=Delphes
 analysis=OFF
-set mass 36 320
-set tanphi 1 4.96743124829
+set mass 36 980
+set tanphi 1 0.0536257837191
 set width 36 Auto
-set nevents 10000
+set nevents 1000
 set ebeam1 7000
 set ebeam2 7000

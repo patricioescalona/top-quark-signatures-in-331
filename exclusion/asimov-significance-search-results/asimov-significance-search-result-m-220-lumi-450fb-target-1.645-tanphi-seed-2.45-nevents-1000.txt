@@ -1,0 +1,30 @@
+Increasing-tanphi Asimov significance search
+mass: 220
+integrated luminosity [fb^-1]: 450
+number of events per process: 1000
+target Asimov significance: 1.645000
+
+Seed evaluation
+tanphi: 2.45
+Z_A: 2.322436
+
+Bracketing interval
+lower tanphi: 1.225
+lower Z_A: 1.015554
+upper tanphi: 2.45
+upper Z_A: 2.322436
+
+Best evaluation found
+tanphi: 2.1053086402
+Z_A: 1.667582
+signal yield: 62.528525
+background yield: 1385.299095
+generated signal point directory: /home/patricio/Documents/top-quark-signatures-in-331/exclusion/generated-signal/generated-m-220-tanphi-2.1053086402
+significance output path: /home/patricio/Documents/top-quark-signatures-in-331/exclusion/generated-signal/generated-m-220-tanphi-2.1053086402/significance.txt
+
+Search accounting
+number of bracketing iterations: 1
+number of bisection iterations: 5
+stopping reason: A midpoint evaluation satisfied the absolute target-significance tolerance.
+number of unique tanphi evaluations: 7
+evaluation history CSV: /home/patricio/Documents/top-quark-signatures-in-331/exclusion/asimov-significance-search-results/asimov-significance-search-history-m-220-lumi-450fb-target-1.645-tanphi-seed-2.45-nevents-1000.csv

@@ -1,0 +1,10 @@
+Point: mass=340, tanphi=0.233345237792
+Wrote 6 compressed event Parquet files.
+ROOT vs Parquet sizes:
+proc-1-m-340-tanphi-0.233345237792: 0.064310 GB -> 0.000116 GB
+proc-2-m-340-tanphi-0.233345237792: 0.062674 GB -> 0.000116 GB
+proc-3-m-340-tanphi-0.233345237792: 0.073690 GB -> 0.000137 GB
+proc-4-m-340-tanphi-0.233345237792: 0.073900 GB -> 0.000137 GB
+proc-5-m-340-tanphi-0.233345237792: 0.075899 GB -> 0.000148 GB
+proc-6-m-340-tanphi-0.233345237792: 0.075096 GB -> 0.000149 GB
+total: 0.425568 GB -> 0.000803 GB

@@ -13,6 +13,7 @@ os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIGDIR))
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -21,6 +22,11 @@ DEFAULT_DECAYS_SCAN_CSV_PATH = SCRIPT_DIR.parent / "decays" / "decays.csv"
 DEFAULT_OUTPUT_PLOT_PATH = (
     DEFAULT_SEARCH_RESULTS_DIRECTORY
     / "explored-points-and-best-points-from-asimov-significance-search-results.png"
+)
+TOP_QUARK_MASS_IN_GEV = 172.76
+CHARM_QUARK_MASS_IN_GEV = 1.27
+PSEUDOSCALAR_TO_TOP_CHARM_THRESHOLD_IN_GEV = (
+    TOP_QUARK_MASS_IN_GEV + CHARM_QUARK_MASS_IN_GEV
 )
 
 
@@ -221,6 +227,30 @@ def load_decays_scan_points(decays_scan_csv_path: Path) -> tuple[list[float], li
     return masses, tanphis
 
 
+def load_ttbar_dominance_boundary(
+    decays_scan_csv_path: Path,
+) -> tuple[list[float], list[float]]:
+    with decays_scan_csv_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        rows = [row for row in reader if row["primary decay channel"].strip() == "t t~"]
+
+    if not rows:
+        return [], []
+
+    minimum_tanphi_by_mass: dict[float, float] = {}
+    for row in rows:
+        mass_value = float(row["mass"])
+        tanphi_value = float(row["tanphi"])
+        current_minimum = minimum_tanphi_by_mass.get(mass_value)
+        if current_minimum is None or tanphi_value < current_minimum:
+            minimum_tanphi_by_mass[mass_value] = tanphi_value
+
+    boundary_points = sorted(minimum_tanphi_by_mass.items())
+    boundary_masses = [mass_value for mass_value, _ in boundary_points]
+    boundary_tanphis = [tanphi_value for _, tanphi_value in boundary_points]
+    return boundary_masses, boundary_tanphis
+
+
 def configuration_matches_filters(
     configuration: SearchConfiguration,
     args: argparse.Namespace,
@@ -311,6 +341,8 @@ def build_plot_title(summaries: list[SearchSummary]) -> str:
 def plot_explored_and_best_points(
     decays_scan_masses: list[float],
     decays_scan_tanphis: list[float],
+    ttbar_dominance_boundary_masses: list[float],
+    ttbar_dominance_boundary_tanphis: list[float],
     histories_by_summary: list[tuple[SearchSummary, list[HistoryPoint]]],
     output_plot_path: Path,
 ) -> Path:
@@ -328,8 +360,12 @@ def plot_explored_and_best_points(
         (summary for summary, _ in histories_by_summary),
         key=lambda summary: (summary.mass_value, summary.best_tanphi_value),
     )
-    best_masses = [summary.mass_value for summary in best_summaries_sorted]
-    best_tanphis = [summary.best_tanphi_value for summary in best_summaries_sorted]
+    best_summaries_below_one = [
+        summary for summary in best_summaries_sorted if summary.best_tanphi_value < 1.0
+    ]
+    best_summaries_above_one = [
+        summary for summary in best_summaries_sorted if summary.best_tanphi_value > 1.0
+    ]
 
     fig, ax = plt.subplots(1, 1, figsize=(7, 5), constrained_layout=True)
     ax.set_yscale("log")
@@ -338,27 +374,55 @@ def plot_explored_and_best_points(
     ax.scatter(
         explored_masses,
         explored_tanphis,
-        s=60,
+        s=42,
         facecolors="white",
         edgecolors="#7f8c8d",
         linewidths=0.8,
         alpha=0.9,
         zorder=2,
     )
-    ax.scatter(
-        best_masses,
-        best_tanphis,
-        s=90,
-        facecolors="#d35400",
-        edgecolors="black",
-        linewidths=0.8,
-        zorder=4,
-    )
-    if len(best_masses) >= 2:
+    best_curve_marker_color = "#d35400"
+    best_curve_line_color = "#b30000"
+    exclusion_region_color = "#e74c3c"
+    exclusion_region_edge_color = "#c0392b"
+    exclusion_region_alpha = 0.20
+    ttbar_dominance_region_color = "#2ca02c"
+    ttbar_dominance_region_edge_color = "#1f7a1f"
+    ttbar_dominance_region_alpha = 0.20
+    best_branch_styles = [
+        (
+            best_summaries_below_one,
+            best_curve_marker_color,
+            best_curve_line_color,
+            "Best points",
+        ),
+        (
+            best_summaries_above_one,
+            best_curve_marker_color,
+            best_curve_line_color,
+            "Best points",
+        ),
+    ]
+    for best_summaries_branch, marker_color, line_color, _ in best_branch_styles:
+        if not best_summaries_branch:
+            continue
+        branch_masses = [summary.mass_value for summary in best_summaries_branch]
+        branch_tanphis = [summary.best_tanphi_value for summary in best_summaries_branch]
+        ax.scatter(
+            branch_masses,
+            branch_tanphis,
+            s=65,
+            facecolors=marker_color,
+            edgecolors="black",
+            linewidths=0.8,
+            zorder=4,
+        )
+        if len(branch_masses) < 2:
+            continue
         ax.plot(
-            best_masses,
-            best_tanphis,
-            color="#b30000",
+            branch_masses,
+            branch_tanphis,
+            color=line_color,
             linewidth=2.0,
             zorder=3,
         )
@@ -368,7 +432,88 @@ def plot_explored_and_best_points(
     ax.set_ylabel("tanphi")
     ax.grid(True, which="both", linestyle=":", linewidth=0.4, alpha=0.4)
 
+    autoscaled_xmin, autoscaled_xmax = ax.get_xlim()
+    if autoscaled_xmin > PSEUDOSCALAR_TO_TOP_CHARM_THRESHOLD_IN_GEV:
+        left_padding = max(5.0, 0.02 * (autoscaled_xmax - autoscaled_xmin))
+        final_xmin = PSEUDOSCALAR_TO_TOP_CHARM_THRESHOLD_IN_GEV - left_padding
+    else:
+        final_xmin = autoscaled_xmin
+    ax.set_xlim(final_xmin, autoscaled_xmax)
+
+    ymin, ymax = ax.get_ylim()
+    ax.axvspan(
+        final_xmin,
+        PSEUDOSCALAR_TO_TOP_CHARM_THRESHOLD_IN_GEV,
+        facecolor="#bdc3c7",
+        alpha=0.35,
+        zorder=0,
+    )
+    if ttbar_dominance_boundary_masses:
+        ax.fill_between(
+            ttbar_dominance_boundary_masses,
+            ttbar_dominance_boundary_tanphis,
+            ymax,
+            facecolor=ttbar_dominance_region_color,
+            alpha=ttbar_dominance_region_alpha,
+            zorder=1,
+        )
+    if best_summaries_above_one:
+        above_one_branch_masses = [
+            summary.mass_value for summary in best_summaries_above_one
+        ]
+        above_one_branch_tanphis = [
+            summary.best_tanphi_value for summary in best_summaries_above_one
+        ]
+        ax.fill_between(
+            above_one_branch_masses,
+            above_one_branch_tanphis,
+            ymax,
+            facecolor=exclusion_region_color,
+            alpha=exclusion_region_alpha,
+            zorder=2,
+        )
+    if best_summaries_below_one:
+        below_one_branch_masses = [
+            summary.mass_value for summary in best_summaries_below_one
+        ]
+        below_one_branch_tanphis = [
+            summary.best_tanphi_value for summary in best_summaries_below_one
+        ]
+        ax.fill_between(
+            below_one_branch_masses,
+            ymin,
+            below_one_branch_tanphis,
+            facecolor=exclusion_region_color,
+            alpha=exclusion_region_alpha,
+            zorder=2,
+        )
+    ax.axvline(
+        PSEUDOSCALAR_TO_TOP_CHARM_THRESHOLD_IN_GEV,
+        color="#7f8c8d",
+        linestyle="--",
+        linewidth=1.0,
+        zorder=2,
+    )
+
     legend_items = [
+        Patch(
+            facecolor="#bdc3c7",
+            edgecolor="#7f8c8d",
+            alpha=0.35,
+            label=r"$m_A < m_t + m_c$",
+        ),
+        Patch(
+            facecolor=exclusion_region_color,
+            edgecolor=exclusion_region_edge_color,
+            alpha=exclusion_region_alpha,
+            label=r"95% CL excluded by $tt/\bar{t}\bar{t}$",
+        ),
+        Patch(
+            facecolor=ttbar_dominance_region_color,
+            edgecolor=ttbar_dominance_region_edge_color,
+            alpha=ttbar_dominance_region_alpha,
+            label=r"To be explored: $tt\bar{t}/ t\bar{t}\bar{t}$",
+        ),
         Line2D(
             [0],
             [0],
@@ -377,27 +522,21 @@ def plot_explored_and_best_points(
             label="Explored points",
             markerfacecolor="white",
             markeredgecolor="#7f8c8d",
-            markersize=7,
+            markersize=6,
         ),
         Line2D(
             [0],
             [0],
             marker="o",
-            color="none",
+            color=best_curve_line_color,
             label="Best points",
-            markerfacecolor="#d35400",
+            markerfacecolor=best_curve_marker_color,
             markeredgecolor="black",
-            markersize=8,
-        ),
-        Line2D(
-            [0],
-            [0],
-            color="#b30000",
             linewidth=2.0,
-            label="Best-point curve",
+            markersize=7,
         ),
     ]
-    ax.legend(handles=legend_items, loc="best", frameon=True)
+    ax.legend(handles=legend_items, loc="upper right", frameon=True)
 
     output_plot_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_plot_path, dpi=200)
@@ -440,6 +579,9 @@ def main() -> int:
     )
 
     decays_scan_masses, decays_scan_tanphis = load_decays_scan_points(decays_scan_csv_path)
+    ttbar_dominance_boundary_masses, ttbar_dominance_boundary_tanphis = (
+        load_ttbar_dominance_boundary(decays_scan_csv_path)
+    )
     histories_by_summary = [
         (summary, load_history_points(summary.evaluation_history_csv_path))
         for summary in summaries
@@ -447,6 +589,8 @@ def main() -> int:
     written_output_path = plot_explored_and_best_points(
         decays_scan_masses,
         decays_scan_tanphis,
+        ttbar_dominance_boundary_masses,
+        ttbar_dominance_boundary_tanphis,
         histories_by_summary,
         output_plot_path,
     )
